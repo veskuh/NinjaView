@@ -24,6 +24,7 @@ void TestGalleryFilterProxyModel::testFiltering()
 {
     ExifDatabase db;
     QVERIFY(db.init());
+    QVERIFY(db.clear());
 
     GalleryListModel sourceModel;
     GalleryFilterProxyModel proxyModel;
@@ -141,6 +142,56 @@ void TestGalleryFilterProxyModel::testFiltering()
     QVERIFY(cameras.contains("Sony A7RIV"));
     QVERIFY(cameras.contains("Apple iPhone 15"));
     QCOMPARE(cameras.count(), 3);
+
+    // Test smart folder filtering
+    QObject::connect(&db, &ExifDatabase::favoritesChanged,
+                     &proxyModel, &GalleryFilterProxyModel::invalidateFilter);
+    QObject::connect(&db, &ExifDatabase::tagsChanged,
+                     &proxyModel, &GalleryFilterProxyModel::invalidateFilter);
+
+    // Filter to smart favorites
+    proxyModel.setFilterType("All"); // Reset filter type
+    proxyModel.setCurrentFolderPath("smart://favorites");
+    // Should accept folder only (since no favorite images yet)
+    QCOMPARE(proxyModel.rowCount(), 1);
+
+    // Favorite fileToday
+    QVERIFY(db.setFavorite(fileToday, true));
+    // Verify it automatically updates proxy model rowCount to 2 (folder + fileToday)
+    QCOMPARE(proxyModel.rowCount(), 2);
+    QCOMPARE(proxyModel.getRawPath(1), fileToday);
+
+    // Favorite fileOld as well
+    QVERIFY(db.setFavorite(fileOld, true));
+    QCOMPARE(proxyModel.rowCount(), 3);
+
+    // Unfavorite fileToday
+    QVERIFY(db.setFavorite(fileToday, false));
+    QCOMPARE(proxyModel.rowCount(), 2);
+    QCOMPARE(proxyModel.getRawPath(1), fileOld);
+
+    // Test smart tags filtering
+    proxyModel.setCurrentFolderPath("smart://tag/vacation");
+    // Should accept folder only
+    QCOMPARE(proxyModel.rowCount(), 1);
+
+    // Tag fileOld with "vacation, nature"
+    QVERIFY(db.setTags(fileOld, "vacation, nature"));
+    // Verify it updates and accepts folder + fileOld
+    QCOMPARE(proxyModel.rowCount(), 2);
+    QCOMPARE(proxyModel.getRawPath(1), fileOld);
+
+    // Change to tag "nature"
+    proxyModel.setCurrentFolderPath("smart://tag/nature");
+    QCOMPARE(proxyModel.rowCount(), 2);
+
+    // Change to tag "party" (non-matching)
+    proxyModel.setCurrentFolderPath("smart://tag/party");
+    QCOMPARE(proxyModel.rowCount(), 1);
+
+    // Reset currentFolderPath to empty/normal
+    proxyModel.setCurrentFolderPath("");
+    QCOMPARE(proxyModel.rowCount(), 4);
 }
 
 QTEST_MAIN(TestGalleryFilterProxyModel)

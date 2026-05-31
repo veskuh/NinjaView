@@ -105,16 +105,18 @@ KaakaoWindow {
                 onTriggered: {
                     galleryModel.clear()
                     root.loading = true
-                    let item = sidebarPanel.sidebarModel.get(sidebarPanel.currentIndex)
-                    if (sidebarPanel.currentIndex === 0) {
-                        let pictures = StandardPaths.writableLocation(StandardPaths.PicturesLocation)
-                        discoveryService.scanDirectory(pictures)
-                    } else if (sidebarPanel.currentIndex === 1) {
-                        if (volumeMonitor.sdCardPath !== "") {
-                            discoveryService.scanDirectory(volumeMonitor.sdCardPath + "/DCIM", true)
+                    let item = sidebarPanel.currentIndex >= 0 ? sidebarPanel.sidebarModel.get(sidebarPanel.currentIndex) : null
+                    if (item) {
+                        if (item.name === qsTr("Pictures") || item.name === "Pictures") {
+                            let pictures = StandardPaths.writableLocation(StandardPaths.PicturesLocation)
+                            discoveryService.scanDirectory(pictures)
+                        } else if (item.name === qsTr("SD Card") || item.name === "SD Card") {
+                            if (volumeMonitor.sdCardPath !== "") {
+                                discoveryService.scanDirectory(volumeMonitor.sdCardPath + "/DCIM", true)
+                            }
+                        } else if (item.path !== undefined && item.path !== "") {
+                            discoveryService.scanDirectory(item.path, false)
                         }
-                    } else if (item && item.path !== undefined) {
-                        discoveryService.scanDirectory(item.path, false)
                     }
                 }
             }
@@ -147,16 +149,18 @@ KaakaoWindow {
                 onTriggered: {
                     galleryModel.clear()
                     root.loading = true
-                    let item = sidebarPanel.sidebarModel.get(sidebarPanel.currentIndex)
-                    if (sidebarPanel.currentIndex === 0) {
-                        let pictures = StandardPaths.writableLocation(StandardPaths.PicturesLocation)
-                        discoveryService.scanDirectory(pictures)
-                    } else if (sidebarPanel.currentIndex === 1) {
-                        if (volumeMonitor.sdCardPath !== "") {
-                            discoveryService.scanDirectory(volumeMonitor.sdCardPath + "/DCIM", true)
+                    let item = sidebarPanel.currentIndex >= 0 ? sidebarPanel.sidebarModel.get(sidebarPanel.currentIndex) : null
+                    if (item) {
+                        if (item.name === qsTr("Pictures") || item.name === "Pictures") {
+                            let pictures = StandardPaths.writableLocation(StandardPaths.PicturesLocation)
+                            discoveryService.scanDirectory(pictures)
+                        } else if (item.name === qsTr("SD Card") || item.name === "SD Card") {
+                            if (volumeMonitor.sdCardPath !== "") {
+                                discoveryService.scanDirectory(volumeMonitor.sdCardPath + "/DCIM", true)
+                            }
+                        } else if (item.path !== undefined && item.path !== "") {
+                            discoveryService.scanDirectory(item.path, false)
                         }
-                    } else if (item && item.path !== undefined) {
-                        discoveryService.scanDirectory(item.path, false)
                     }
                 }
             }
@@ -183,13 +187,20 @@ KaakaoWindow {
     }
 
     function getCurrentFolderPath() {
-        if (sidebarPanel.currentIndex === 0) {
-            return "pictures_library";
-        } else if (sidebarPanel.currentIndex === 1) {
-            return "sd_card_device";
-        } else {
+        if (sidebarPanel.currentIndex < 0 || sidebarPanel.currentIndex >= sidebarPanel.sidebarModel.count) {
             return root.currentFolderDescription;
         }
+        let item = sidebarPanel.sidebarModel.get(sidebarPanel.currentIndex);
+        if (!item) return root.currentFolderDescription;
+        
+        if (item.name === qsTr("Pictures") || item.name === "Pictures") {
+            return "pictures_library";
+        } else if (item.name === qsTr("SD Card") || item.name === "SD Card") {
+            return "sd_card_device";
+        } else if (item.path !== undefined && item.path !== "") {
+            return item.path;
+        }
+        return root.currentFolderDescription;
     }
 
     Component.onCompleted: {
@@ -212,12 +223,19 @@ KaakaoWindow {
     Connections {
         target: volumeMonitor
         function onSdCardPathChanged() {
-            if (sidebarPanel.currentIndex === 1 && volumeMonitor.sdCardPath !== "") {
+            let item = sidebarPanel.currentIndex >= 0 ? sidebarPanel.sidebarModel.get(sidebarPanel.currentIndex) : null
+            if (item && (item.name === qsTr("SD Card") || item.name === "SD Card") && volumeMonitor.sdCardPath !== "") {
                 console.log("SD Card detected, scanning:", volumeMonitor.sdCardPath)
                 galleryModel.clear()
                 discoveryService.scanDirectory(volumeMonitor.sdCardPath + "/DCIM", true)
             }
         }
+    }
+
+    Binding {
+        target: galleryModel
+        property: "currentFolderPath"
+        value: root.getCurrentFolderPath()
     }
 
     Connections {
@@ -290,38 +308,38 @@ KaakaoWindow {
                         
                         Column {
                             spacing: 0
-                            KaakaoLabel {
-                                text: root.currentTitle
-                                role: KaakaoLabel.Header
-                                visible: root.currentFolderDescription === ""
-                            }
-                            KaakaoPathControl {
-                                id: pathControl
-                                objectName: "pathControl"
-                                
-                                readonly property string homePath: String(StandardPaths.writableLocation(StandardPaths.HomeLocation)).replace("file://", "")
-                                readonly property string displayBasePath: {
-                                    let p = String(root.currentFolderDescription).replace("file://", "")
-                                    if (p.startsWith(homePath)) return homePath
-                                    return "/"
-                                }
-                                
-                                rootLabel: {
-                                    if (displayBasePath === "/") return qsTr("Root")
-                                    return displayBasePath.substring(displayBasePath.lastIndexOf("/") + 1)
-                                }
-                                
-                                path: {
-                                    let p = String(root.currentFolderDescription).replace("file://", "")
-                                    if (p.startsWith(displayBasePath)) {
-                                        let rel = p.substring(displayBasePath.length)
-                                        if (rel.startsWith("/")) rel = rel.substring(1)
-                                        return rel
-                                    }
-                                    return p
-                                }
-                                
-                                visible: root.currentFolderDescription !== ""
+                             KaakaoLabel {
+                                 text: root.currentTitle
+                                 role: KaakaoLabel.Header
+                                 visible: root.currentFolderDescription === "" || root.currentFolderDescription.startsWith("smart://")
+                             }
+                             KaakaoPathControl {
+                                 id: pathControl
+                                 objectName: "pathControl"
+                                 
+                                 readonly property string homePath: String(StandardPaths.writableLocation(StandardPaths.HomeLocation)).replace("file://", "")
+                                 readonly property string displayBasePath: {
+                                     let p = String(root.currentFolderDescription).replace("file://", "")
+                                     if (p.startsWith(homePath)) return homePath
+                                     return "/"
+                                 }
+                                 
+                                 rootLabel: {
+                                     if (displayBasePath === "/") return qsTr("Root")
+                                     return displayBasePath.substring(displayBasePath.lastIndexOf("/") + 1)
+                                 }
+                                 
+                                 path: {
+                                     let p = String(root.currentFolderDescription).replace("file://", "")
+                                     if (p.startsWith(displayBasePath)) {
+                                         let rel = p.substring(displayBasePath.length)
+                                         if (rel.startsWith("/")) rel = rel.substring(1)
+                                         return rel
+                                     }
+                                     return p
+                                 }
+                                 
+                                 visible: root.currentFolderDescription !== "" && !root.currentFolderDescription.startsWith("smart://")
                                 
                                 onPathClicked: (targetPath) => {
                                     // Reconstruct absolute path

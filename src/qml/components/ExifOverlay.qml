@@ -22,10 +22,23 @@ Rectangle {
         }
         spacing: 5
 
-        KaakaoLabel {
-            text: qsTr("EXIF Information")
-            role: KaakaoLabel.Header
-            color: "white"
+        Row {
+            spacing: 5
+            
+            Text {
+                text: "★"
+                color: "#FFC107"
+                font.pixelSize: 14
+                font.bold: true
+                visible: !!root.exifData.Favorite
+                y: -1
+            }
+            
+            KaakaoLabel {
+                text: qsTr("Information")
+                role: KaakaoLabel.Header
+                color: "white"
+            }
         }
 
         Rectangle {
@@ -71,6 +84,10 @@ Rectangle {
                 {
                     label: "Date",
                     value: root.exifData.DateTime
+                },
+                {
+                    label: "Tags",
+                    value: root.exifData.Tags
                 }
             ]
             delegate: Row {
@@ -93,6 +110,29 @@ Rectangle {
                     font.pixelSize: 11
                 }
             }
+        }
+
+        Rectangle {
+            width: parent.width
+            height: 1
+            color: Qt.rgba(1, 1, 1, 0.3)
+            visible: root.exifData.Notes !== undefined && root.exifData.Notes !== ""
+        }
+
+        KaakaoLabel {
+            text: qsTr("Notes:")
+            color: "#AAA"
+            font.pixelSize: 11
+            visible: root.exifData.Notes !== undefined && root.exifData.Notes !== ""
+        }
+
+        KaakaoLabel {
+            text: String(root.exifData.Notes)
+            width: parent.width
+            wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+            color: "white"
+            font.pixelSize: 11
+            visible: root.exifData.Notes !== undefined && root.exifData.Notes !== ""
         }
     }
 }

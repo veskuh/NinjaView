@@ -6,6 +6,8 @@
 #include <QDebug>
 #include <QThread>
 #include <QUrl>
+#include <QFileInfo>
+#include <QSet>
 
 ExifDatabase::ExifDatabase(QObject *parent)
     : QObject(parent)
@@ -66,10 +68,36 @@ bool ExifDatabase::init()
                          ")");
     if (!ok) {
         qWarning() << "ExifDatabase: Schema creation failed -" << query.lastError().text();
-    } else {
-        qDebug() << "ExifDatabase: Schema initialized successfully";
+        return false;
     }
-    return ok;
+
+    // Check and add missing columns dynamically: favorite, notes, tags
+    if (query.exec("PRAGMA table_info(exif_cache)")) {
+        QSet<QString> columns;
+        while (query.next()) {
+            columns.insert(query.value(1).toString());
+        }
+        if (!columns.contains("favorite")) {
+            if (!query.exec("ALTER TABLE exif_cache ADD COLUMN favorite INTEGER DEFAULT 0")) {
+                qWarning() << "ExifDatabase: Failed to add favorite column -" << query.lastError().text();
+            }
+        }
+        if (!columns.contains("notes")) {
+            if (!query.exec("ALTER TABLE exif_cache ADD COLUMN notes TEXT DEFAULT ''")) {
+                qWarning() << "ExifDatabase: Failed to add notes column -" << query.lastError().text();
+            }
+        }
+        if (!columns.contains("tags")) {
+            if (!query.exec("ALTER TABLE exif_cache ADD COLUMN tags TEXT DEFAULT ''")) {
+                qWarning() << "ExifDatabase: Failed to add tags column -" << query.lastError().text();
+            }
+        }
+    } else {
+        qWarning() << "ExifDatabase: Failed to query table schema info -" << query.lastError().text();
+    }
+
+    qDebug() << "ExifDatabase: Schema initialized successfully";
+    return true;
 }
 
 bool ExifDatabase::isCached(const QString &filePath, qint64 fileSize, const QDateTime &lastModified)
@@ -98,7 +126,7 @@ QVariantMap ExifDatabase::getExifData(const QString &filePath)
     if (!db.isOpen()) return data;
 
     QSqlQuery query(db);
-    query.prepare("SELECT make, model, lens, exposure, aperture, iso, datetime FROM exif_cache WHERE file_path = :path");
+    query.prepare("SELECT make, model, lens, exposure, aperture, iso, datetime, favorite, notes, tags FROM exif_cache WHERE file_path = :path");
     query.bindValue(":path", filePath);
 
     if (query.exec() && query.next()) {
@@ -109,6 +137,9 @@ QVariantMap ExifDatabase::getExifData(const QString &filePath)
         data["Aperture"] = query.value(4).toString();
         data["ISO"] = query.value(5).toInt();
         data["DateTime"] = query.value(6).toString();
+        data["Favorite"] = query.value(7).toInt() == 1;
+        data["Notes"] = query.value(8).toString();
+        data["Tags"] = query.value(9).toString();
     }
     return data;
 }
@@ -119,9 +150,30 @@ bool ExifDatabase::saveExifData(const QString &filePath, qint64 fileSize, const 
     if (!db.isOpen()) return false;
 
     QSqlQuery query(db);
-    query.prepare("INSERT OR REPLACE INTO exif_cache "
-                  "(file_path, file_size, last_modified, make, model, lens, exposure, aperture, iso, datetime) "
-                  "VALUES (:path, :size, :modified, :make, :model, :lens, :exposure, :aperture, :iso, :datetime)");
+    
+    // Check if record already exists
+    query.prepare("SELECT COUNT(*) FROM exif_cache WHERE file_path = :path");
+    query.bindValue(":path", filePath);
+    bool exists = false;
+    if (query.exec() && query.next()) {
+        exists = query.value(0).toInt() > 0;
+    }
+
+    if (exists) {
+        // Update existing record, preserving user favorite/notes/tags
+        query.prepare("UPDATE exif_cache SET "
+                      "file_size = :size, last_modified = :modified, "
+                      "make = :make, model = :model, lens = :lens, "
+                      "exposure = :exposure, aperture = :aperture, "
+                      "iso = :iso, datetime = :datetime "
+                      "WHERE file_path = :path");
+    } else {
+        // Insert new record with defaults for favorite/notes/tags
+        query.prepare("INSERT INTO exif_cache "
+                      "(file_path, file_size, last_modified, make, model, lens, exposure, aperture, iso, datetime, favorite, notes, tags) "
+                      "VALUES (:path, :size, :modified, :make, :model, :lens, :exposure, :aperture, :iso, :datetime, 0, '', '')");
+    }
+
     query.bindValue(":path", filePath);
     query.bindValue(":size", fileSize);
     query.bindValue(":modified", lastModified.toString(Qt::ISODate));
@@ -283,6 +335,192 @@ bool ExifDatabase::clear()
         qWarning() << "ExifDatabase: Clear failed -" << query.lastError().text();
     } else {
         qDebug() << "ExifDatabase: Database cleared successfully";
+        emit favoritesChanged();
+        emit notesChanged("");
+        emit tagsChanged();
     }
     return ok;
+}
+
+bool ExifDatabase::ensureRecordExists(const QString &filePath, QSqlQuery &query)
+{
+    query.prepare("SELECT COUNT(*) FROM exif_cache WHERE file_path = :path");
+    query.bindValue(":path", filePath);
+    if (query.exec() && query.next() && query.value(0).toInt() > 0) {
+        return true; // Already exists
+    }
+
+    // Doesn't exist, retrieve filesystem info and create a basic record
+    QFileInfo fileInfo(filePath);
+    query.prepare("INSERT INTO exif_cache "
+                  "(file_path, file_size, last_modified, make, model, lens, exposure, aperture, iso, datetime, favorite, notes, tags) "
+                  "VALUES (:path, :size, :modified, '', '', '', '', '', 0, '', 0, '', '')");
+    query.bindValue(":path", filePath);
+    query.bindValue(":size", fileInfo.exists() ? fileInfo.size() : 0);
+    query.bindValue(":modified", fileInfo.exists() ? fileInfo.lastModified().toString(Qt::ISODate) : QDateTime::currentDateTime().toString(Qt::ISODate));
+    return query.exec();
+}
+
+bool ExifDatabase::setFavorite(const QString &filePath, bool favorite)
+{
+    QSqlDatabase db = getDatabaseConnection();
+    if (!db.isOpen()) return false;
+
+    QSqlQuery query(db);
+    if (!ensureRecordExists(filePath, query)) return false;
+
+    query.prepare("UPDATE exif_cache SET favorite = :fav WHERE file_path = :path");
+    query.bindValue(":fav", favorite ? 1 : 0);
+    query.bindValue(":path", filePath);
+    bool ok = query.exec();
+    if (ok) {
+        emit favoritesChanged();
+    }
+    return ok;
+}
+
+bool ExifDatabase::isFavorite(const QString &filePath)
+{
+    QSqlDatabase db = getDatabaseConnection();
+    if (!db.isOpen()) return false;
+
+    QSqlQuery query(db);
+    query.prepare("SELECT favorite FROM exif_cache WHERE file_path = :path");
+    query.bindValue(":path", filePath);
+    if (query.exec() && query.next()) {
+        return query.value(0).toInt() == 1;
+    }
+    return false;
+}
+
+bool ExifDatabase::setNotes(const QString &filePath, const QString &notes)
+{
+    QSqlDatabase db = getDatabaseConnection();
+    if (!db.isOpen()) return false;
+
+    QSqlQuery query(db);
+    if (!ensureRecordExists(filePath, query)) return false;
+
+    query.prepare("UPDATE exif_cache SET notes = :notes WHERE file_path = :path");
+    query.bindValue(":notes", notes);
+    query.bindValue(":path", filePath);
+    bool ok = query.exec();
+    if (ok) {
+        emit notesChanged(filePath);
+    }
+    return ok;
+}
+
+QString ExifDatabase::getNotes(const QString &filePath)
+{
+    QSqlDatabase db = getDatabaseConnection();
+    if (!db.isOpen()) return "";
+
+    QSqlQuery query(db);
+    query.prepare("SELECT notes FROM exif_cache WHERE file_path = :path");
+    query.bindValue(":path", filePath);
+    if (query.exec() && query.next()) {
+        return query.value(0).toString();
+    }
+    return "";
+}
+
+bool ExifDatabase::setTags(const QString &filePath, const QString &tags)
+{
+    QSqlDatabase db = getDatabaseConnection();
+    if (!db.isOpen()) return false;
+
+    QSqlQuery query(db);
+    if (!ensureRecordExists(filePath, query)) return false;
+
+    // Clean tags: trim whitespace and normalize commas
+    QStringList cleanedList;
+    for (const QString &tag : tags.split(',')) {
+        QString trimmed = tag.trimmed();
+        if (!trimmed.isEmpty()) {
+            cleanedList << trimmed;
+        }
+    }
+    QString cleanedTags = cleanedList.join(",");
+
+    query.prepare("UPDATE exif_cache SET tags = :tags WHERE file_path = :path");
+    query.bindValue(":tags", cleanedTags);
+    query.bindValue(":path", filePath);
+    bool ok = query.exec();
+    if (ok) {
+        emit tagsChanged();
+    }
+    return ok;
+}
+
+QString ExifDatabase::getTags(const QString &filePath)
+{
+    QSqlDatabase db = getDatabaseConnection();
+    if (!db.isOpen()) return "";
+
+    QSqlQuery query(db);
+    query.prepare("SELECT tags FROM exif_cache WHERE file_path = :path");
+    query.bindValue(":path", filePath);
+    if (query.exec() && query.next()) {
+        return query.value(0).toString();
+    }
+    return "";
+}
+
+QStringList ExifDatabase::getAllTags()
+{
+    QStringList allTags;
+    QSqlDatabase db = getDatabaseConnection();
+    if (!db.isOpen()) return allTags;
+
+    QSqlQuery query(db);
+    query.prepare("SELECT tags FROM exif_cache WHERE tags IS NOT NULL AND tags != ''");
+    QSet<QString> tagSet;
+    if (query.exec()) {
+        while (query.next()) {
+            QString tagsStr = query.value(0).toString();
+            for (const QString &tag : tagsStr.split(',')) {
+                QString trimmed = tag.trimmed();
+                if (!trimmed.isEmpty()) {
+                    tagSet.insert(trimmed);
+                }
+            }
+        }
+    }
+    allTags = tagSet.values();
+    std::sort(allTags.begin(), allTags.end());
+    return allTags;
+}
+
+QStringList ExifDatabase::getFavorites()
+{
+    QStringList paths;
+    QSqlDatabase db = getDatabaseConnection();
+    if (!db.isOpen()) return paths;
+
+    QSqlQuery query(db);
+    query.prepare("SELECT file_path FROM exif_cache WHERE favorite = 1");
+    if (query.exec()) {
+        while (query.next()) {
+            paths << query.value(0).toString();
+        }
+    }
+    return paths;
+}
+
+QStringList ExifDatabase::getImagesWithTag(const QString &tag)
+{
+    QStringList paths;
+    QSqlDatabase db = getDatabaseConnection();
+    if (!db.isOpen()) return paths;
+
+    QSqlQuery query(db);
+    query.prepare("SELECT file_path FROM exif_cache WHERE ',' || tags || ',' LIKE :pattern");
+    query.bindValue(":pattern", "%," + tag.trimmed() + ",%");
+    if (query.exec()) {
+        while (query.next()) {
+            paths << query.value(0).toString();
+        }
+    }
+    return paths;
 }

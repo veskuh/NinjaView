@@ -79,6 +79,7 @@ Item {
     function loadSidebar() {
         sidebarModel.clear()
         sidebarModel.append({ name: qsTr("Pictures"), icon: "🖼️", category: qsTr("Library") })
+        sidebarModel.append({ name: qsTr("Favorites"), icon: "★", iconColor: "#FFC107", category: qsTr("Library"), path: "smart://favorites" })
         sidebarModel.append({ name: qsTr("SD Card"), icon: "💾", category: qsTr("Devices") })
         
         let folders = JSON.parse(panel.settings.savedFolders)
@@ -93,6 +94,49 @@ Item {
                 path: path 
             })
         }
+
+        // Load dynamic tags from database
+        if (typeof exifDatabase !== 'undefined' && exifDatabase) {
+            let tags = exifDatabase.getAllTags()
+            for (let i = 0; i < tags.length; ++i) {
+                let tag = tags[i]
+                sidebarModel.append({
+                    name: tag,
+                    icon: "🏷️",
+                    category: qsTr("Tags"),
+                    path: "smart://tag/" + tag
+                })
+            }
+        }
+    }
+
+    function refreshSidebar() {
+        // Save current selection state
+        let activePath = ""
+        let activeName = ""
+        let activeCategory = ""
+        if (sidebar.currentIndex >= 0 && sidebar.currentIndex < sidebarModel.count) {
+            let activeItem = sidebarModel.get(sidebar.currentIndex)
+            activePath = activeItem.path || ""
+            activeName = activeItem.name
+            activeCategory = activeItem.category
+        }
+
+        // Reload
+        loadSidebar()
+
+        // Restore selection index
+        let newIndex = -1
+        for (let i = 0; i < sidebarModel.count; ++i) {
+            let item = sidebarModel.get(i)
+            if (item.category === activeCategory && item.name === activeName && (item.path || "") === activePath) {
+                newIndex = i
+                break
+            }
+        }
+        
+        // Temporarily block current index change handler to prevent navigation triggers
+        sidebar.currentIndex = newIndex
     }
 
     Component.onCompleted: {
@@ -274,10 +318,17 @@ Item {
             let item = sidebarModel.get(currentIndex)
             let name = item.name
             let path = item.path || ""
-            let isPictures = (currentIndex === 0)
-            let isSdCard = (currentIndex === 1)
+            let isPictures = (name === qsTr("Pictures") || name === "Pictures")
+            let isSdCard = (name === qsTr("SD Card") || name === "SD Card")
             
             panel.directorySelected(name, path, isPictures, isSdCard)
+        }
+    }
+
+    Connections {
+        target: typeof exifDatabase !== 'undefined' ? exifDatabase : null
+        function onTagsChanged() {
+            panel.refreshSidebar()
         }
     }
 }

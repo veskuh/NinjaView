@@ -40,6 +40,12 @@ int main(int argc, char *argv[])
     filterModel.setSourceModel(&galleryModel);
     filterModel.setDatabase(&exifDb);
     
+    // Auto-refresh proxy filter when metadata updates
+    QObject::connect(&exifDb, &ExifDatabase::favoritesChanged,
+                     &filterModel, &GalleryFilterProxyModel::invalidateFilter);
+    QObject::connect(&exifDb, &ExifDatabase::tagsChanged,
+                     &filterModel, &GalleryFilterProxyModel::invalidateFilter);
+    
     FileDiscoveryService discoveryService;
     discoveryService.setDatabase(&exifDb);
     

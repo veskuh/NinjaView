@@ -36,6 +36,15 @@ void GalleryFilterProxyModel::setCameraFilter(const QString &camera)
     }
 }
 
+void GalleryFilterProxyModel::setCurrentFolderPath(const QString &path)
+{
+    if (m_currentFolderPath != path) {
+        m_currentFolderPath = path;
+        emit currentFolderPathChanged();
+        invalidateFilter();
+    }
+}
+
 void GalleryFilterProxyModel::clear()
 {
     auto srcModel = qobject_cast<GalleryListModel*>(sourceModel());
@@ -106,11 +115,36 @@ bool GalleryFilterProxyModel::filterAcceptsRow(int source_row, const QModelIndex
         return true;
     }
 
+    QString filePath = srcModel->getRawPath(source_row);
+
+    // Apply smart folder criteria
+    if (m_currentFolderPath == "smart://favorites") {
+        bool isFav = m_db ? m_db->isFavorite(filePath) : false;
+        if (m_db && !isFav) {
+            return false;
+        }
+    } else if (m_currentFolderPath.startsWith("smart://tag/")) {
+        QString tag = m_currentFolderPath.mid(12); // "smart://tag/" is 12 chars
+        if (m_db) {
+            QString tagsStr = m_db->getTags(filePath);
+            QStringList tagList = tagsStr.split(',');
+            bool hasTag = false;
+            for (const QString &t : tagList) {
+                if (t.trimmed().compare(tag, Qt::CaseInsensitive) == 0) {
+                    hasTag = true;
+                    break;
+                }
+            }
+            if (!hasTag) {
+                return false;
+            }
+        }
+    }
+
     if (m_filterType == "All") {
         return true;
     }
 
-    QString filePath = srcModel->getRawPath(source_row);
     QFileInfo fileInfo(filePath);
     
     QDateTime fileDate = fileInfo.lastModified();
@@ -173,4 +207,9 @@ bool GalleryFilterProxyModel::matchDate(const QDateTime &dateTime, const QString
         return (date.month() == current.month() && date.year() == current.year());
     }
     return true;
+}
+
+void GalleryFilterProxyModel::invalidateFilter()
+{
+    QSortFilterProxyModel::invalidateFilter();
 }
