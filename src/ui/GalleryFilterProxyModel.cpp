@@ -110,9 +110,9 @@ bool GalleryFilterProxyModel::filterAcceptsRow(int source_row, const QModelIndex
     auto srcModel = qobject_cast<GalleryListModel*>(sourceModel());
     if (!srcModel) return false;
 
-    // Folders are always accepted
+    // Folders are accepted unless we are in a smart folder
     if (srcModel->isFolder(source_row)) {
-        return true;
+        return !m_currentFolderPath.startsWith("smart://");
     }
 
     QString filePath = srcModel->getRawPath(source_row);

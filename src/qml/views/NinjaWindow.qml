@@ -187,6 +187,12 @@ KaakaoWindow {
     }
 
     function getCurrentFolderPath() {
+        if (root.currentFolderDescription.startsWith("smart://")) {
+            return root.currentFolderDescription;
+        }
+        if (typeof sidebarPanel !== "undefined" && sidebarPanel && sidebarPanel.blockNavigation) {
+            return (typeof galleryModel !== "undefined" && galleryModel) ? galleryModel.currentFolderPath : root.currentFolderDescription;
+        }
         if (sidebarPanel.currentIndex < 0 || sidebarPanel.currentIndex >= sidebarPanel.sidebarModel.count) {
             return root.currentFolderDescription;
         }

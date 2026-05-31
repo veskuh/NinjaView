@@ -14,6 +14,8 @@ Item {
 
     signal directorySelected(string name, string path, bool isPictures, bool isSdCard)
 
+    property bool blockNavigation: false
+
     readonly property alias currentIndex: sidebar.currentIndex
     readonly property alias sidebarModel: sidebarModel
     readonly property alias sidebar: sidebar
@@ -111,6 +113,7 @@ Item {
     }
 
     function refreshSidebar() {
+        panel.blockNavigation = true
         // Save current selection state
         let activePath = ""
         let activeName = ""
@@ -137,6 +140,7 @@ Item {
         
         // Temporarily block current index change handler to prevent navigation triggers
         sidebar.currentIndex = newIndex
+        panel.blockNavigation = false
     }
 
     Component.onCompleted: {
@@ -313,6 +317,7 @@ Item {
         }
 
         onCurrentIndexChanged: {
+            if (panel.blockNavigation) return
             if (currentIndex < 0 || currentIndex >= sidebarModel.count) return
             
             let item = sidebarModel.get(currentIndex)
