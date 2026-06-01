@@ -170,6 +170,17 @@ Item {
         }
         MenuSeparator {}
         KaakaoMenuItem {
+            text: qsTr("Rotate Left")
+            enabled: root.isJpegFile(galleryContextMenu.targetIndex)
+            onTriggered: root.rotateImage(270)
+        }
+        KaakaoMenuItem {
+            text: qsTr("Rotate Right")
+            enabled: root.isJpegFile(galleryContextMenu.targetIndex)
+            onTriggered: root.rotateImage(90)
+        }
+        MenuSeparator {}
+        KaakaoMenuItem {
             text: qsTr("Move to Trash")
             onTriggered: {
                 let index = galleryContextMenu.targetIndex
@@ -348,7 +359,7 @@ Item {
                             fill: parent
                         }
                         visible: !model.isFolder
-                        source: model.isFolder ? "" : ("image://gallery/" + model.rawPath)
+                        source: model.isFolder ? "" : root.getImageUrl(model.rawPath)
                         sourceSize: Qt.size(200, 200)
                         fillMode: Image.PreserveAspectFit
                         asynchronous: true

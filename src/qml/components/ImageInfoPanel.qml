@@ -114,7 +114,7 @@ Item {
                             fill: parent
                             margins: 5
                         }
-                        source: panel.currentPath ? "image://gallery/" + panel.currentPath : ""
+                        source: panel.currentPath ? root.getImageUrl(panel.currentPath) : ""
                         sourceSize: Qt.size(300, 300)
                         fillMode: Image.PreserveAspectFit
                     }

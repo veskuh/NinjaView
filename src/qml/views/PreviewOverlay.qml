@@ -11,6 +11,16 @@ Item {
 
     required property var model
     property int currentIndex: -1
+    property var getImageUrl: null
+    property var rotateImage: null
+
+    function resolveImageUrl(path) {
+        if (!path) return ""
+        if (typeof getImageUrl === "function") {
+            return getImageUrl(path)
+        }
+        return "image://gallery/" + path
+    }
     
     // Helper to get total count from different model types
     readonly property int modelCount: {
@@ -174,7 +184,7 @@ Item {
 
     Image { 
         id: nextPrefetchImage
-        source: root.nextImagePath ? "image://gallery/" + root.nextImagePath : ""
+        source: root.nextImagePath ? resolveImageUrl(root.nextImagePath) : ""
         visible: false
         asynchronous: true
         cache: true
@@ -187,7 +197,7 @@ Item {
     }
     Image { 
         id: prevPrefetchImage
-        source: root.prevImagePath ? "image://gallery/" + root.prevImagePath : ""
+        source: root.prevImagePath ? resolveImageUrl(root.prevImagePath) : ""
         visible: false
         asynchronous: true
         cache: true
@@ -209,7 +219,7 @@ Item {
     ZoomableImage {
         id: zoomableImage
         anchors.fill: parent
-        source: root.currentImagePath ? "image://gallery/" + root.currentImagePath : ""
+        source: root.currentImagePath ? resolveImageUrl(root.currentImagePath) : ""
     }
 
     // Hidden cursor Area during fullscreen (Mac OS X viewer aesthetic)
@@ -271,6 +281,12 @@ Item {
             event.accepted = true
         } else if (event.key === Qt.Key_I) {
             root.showInfo = !root.showInfo
+            event.accepted = true
+        } else if (event.key === Qt.Key_L) {
+            if (typeof rotateImage === "function") rotateImage(270)
+            event.accepted = true
+        } else if (event.key === Qt.Key_R) {
+            if (typeof rotateImage === "function") rotateImage(90)
             event.accepted = true
         } else if (event.key === Qt.Key_Plus || event.key === Qt.Key_Equal) {
             zoomableImage.applyZoom(Math.min(zoomableImage.currentZoom * 1.1, 20.0), zoomableImage.width / 2, zoomableImage.height / 2)

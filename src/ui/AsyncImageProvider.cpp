@@ -13,8 +13,8 @@
 
 static QMutex s_cacheMutex;
 
-AsyncImageResponse::AsyncImageResponse(const QString &id, const QSize &requestedSize, QCache<QString, QImage> *cache, Logger *logger)
-    : m_id(id), m_requestedSize(requestedSize), m_cache(cache), m_logger(logger)
+AsyncImageResponse::AsyncImageResponse(const QString &id, const QSize &requestedSize, AsyncImageProvider *provider, Logger *logger)
+    : m_id(id), m_requestedSize(requestedSize), m_provider(provider), m_logger(logger)
 {
     setAutoDelete(false);
 }
@@ -31,13 +31,20 @@ void AsyncImageResponse::run()
         return;
     }
 
-    QString cacheKey = QString("%1_%2x%3").arg(m_id).arg(m_requestedSize.width()).arg(m_requestedSize.height());
+    // Strip query parameters to get the clean file path
+    QString cleanPath = m_id;
+    int queryIdx = m_id.indexOf('?');
+    if (queryIdx != -1) {
+        cleanPath = m_id.left(queryIdx);
+    }
+
+    QString cacheKey = QString("%1_%2x%3").arg(cleanPath).arg(m_requestedSize.width()).arg(m_requestedSize.height());
     
     // 1. Check Memory Cache
     {
         QMutexLocker locker(&s_cacheMutex);
-        if (m_cache->contains(cacheKey)) {
-            m_image = *m_cache->object(cacheKey);
+        if (m_provider->m_cache.contains(cacheKey)) {
+            m_image = *m_provider->m_cache.object(cacheKey);
             emit finished();
             return;
         }
@@ -48,22 +55,26 @@ void AsyncImageResponse::run()
         return;
     }
 
-    // 2. Check Disk Cache
+    // 2. Check Disk Cache (only if not rotated in-memory)
+    int rotationAngle = m_provider->inMemoryRotation(cleanPath);
     QString cacheDir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + "/thumbnails";
-    QString hash = QCryptographicHash::hash(cacheKey.toUtf8(), QCryptographicHash::Md5).toHex();
-    QString diskPath = cacheDir + "/" + hash + ".jpg";
+    QString hash = QCryptographicHash::hash(cleanPath.toUtf8(), QCryptographicHash::Md5).toHex();
+    QString diskPath = cacheDir + "/" + hash + "_" + QString::number(m_requestedSize.width()) + "x" + QString::number(m_requestedSize.height()) + ".jpg";
 
-    if (QFile::exists(diskPath)) {
-        m_image.load(diskPath);
-        if (!m_image.isNull()) {
-            if (m_isCancelled) {
+    if (rotationAngle == 0) {
+        if (QFile::exists(diskPath)) {
+            m_image.load(diskPath);
+            if (!m_image.isNull()) {
+                if (m_isCancelled) {
+                    emit finished();
+                    return;
+                }
+                QMutexLocker locker(&s_cacheMutex);
+                m_provider->m_cache.insert(cacheKey, new QImage(m_image), m_image.sizeInBytes());
+                m_provider->m_cachedKeys[cleanPath].append(cacheKey);
                 emit finished();
                 return;
             }
-            QMutexLocker locker(&s_cacheMutex);
-            m_cache->insert(cacheKey, new QImage(m_image), m_image.sizeInBytes());
-            emit finished();
-            return;
         }
     }
 
@@ -73,7 +84,7 @@ void AsyncImageResponse::run()
     }
 
     // 3. Decode from Source
-    QImageReader reader(m_id);
+    QImageReader reader(cleanPath);
     reader.setAutoTransform(true);
     if (reader.canRead()) {
         if (m_requestedSize.isValid()) {
@@ -97,15 +108,25 @@ void AsyncImageResponse::run()
         }
 
         if (!m_image.isNull()) {
+            // Apply in-memory rotation if applicable
+            if (rotationAngle != 0) {
+                QTransform transform;
+                transform.rotate(rotationAngle);
+                m_image = m_image.transformed(transform);
+            }
+
             // Save to memory cache
             {
                 QMutexLocker locker(&s_cacheMutex);
-                m_cache->insert(cacheKey, new QImage(m_image), m_image.sizeInBytes());
+                m_provider->m_cache.insert(cacheKey, new QImage(m_image), m_image.sizeInBytes());
+                m_provider->m_cachedKeys[cleanPath].append(cacheKey);
             }
             
-            // Save to disk cache
-            QDir().mkpath(cacheDir);
-            m_image.save(diskPath, "JPG", 80);
+            // Save to disk cache ONLY if it is not rotated in-memory
+            if (rotationAngle == 0) {
+                QDir().mkpath(cacheDir);
+                m_image.save(diskPath, "JPG", 80);
+            }
         }
     }
 
@@ -143,7 +164,7 @@ void AsyncImageProvider::setMaxMemoryCacheSize(qint64 size)
 
 QQuickImageResponse *AsyncImageProvider::requestImageResponse(const QString &id, const QSize &requestedSize)
 {
-    AsyncImageResponse *response = new AsyncImageResponse(id, requestedSize, &m_cache, m_logger);
+    AsyncImageResponse *response = new AsyncImageResponse(id, requestedSize, this, m_logger);
     QThreadPool::globalInstance()->start(response);
     return response;
 }
@@ -152,6 +173,77 @@ void AsyncImageProvider::clearCache()
 {
     QMutexLocker locker(&s_cacheMutex);
     m_cache.clear();
+    m_cachedKeys.clear();
+    m_inMemoryRotations.clear();
+}
+
+void AsyncImageProvider::clearImageCache(const QString &filePath)
+{
+    QString cleanPath = filePath;
+    int queryIdx = filePath.indexOf('?');
+    if (queryIdx != -1) {
+        cleanPath = filePath.left(queryIdx);
+    }
+    
+    {
+        QMutexLocker locker(&s_cacheMutex);
+        const QStringList keys = m_cachedKeys.take(cleanPath);
+        for (const QString &key : keys) {
+            m_cache.remove(key);
+        }
+    }
+    
+    clearDiskCacheForFile(cleanPath);
+}
+
+void AsyncImageProvider::clearDiskCacheForFile(const QString &cleanPath)
+{
+    QString hash = QCryptographicHash::hash(cleanPath.toUtf8(), QCryptographicHash::Md5).toHex();
+    QString prefix = hash + "_";
+    QDir dir(m_diskCachePath);
+    QStringList filters;
+    filters << prefix + "*.jpg";
+    QStringList files = dir.entryList(filters, QDir::Files);
+    for (const QString &file : files) {
+        dir.remove(file);
+    }
+}
+
+void AsyncImageProvider::setInMemoryRotation(const QString &filePath, int angle)
+{
+    QString cleanPath = filePath;
+    int queryIdx = filePath.indexOf('?');
+    if (queryIdx != -1) {
+        cleanPath = filePath.left(queryIdx);
+    }
+    
+    QMutexLocker locker(&s_cacheMutex);
+    int currentAngle = m_inMemoryRotations.value(cleanPath, 0);
+    m_inMemoryRotations[cleanPath] = (currentAngle + angle) % 360;
+}
+
+void AsyncImageProvider::clearInMemoryRotation(const QString &filePath)
+{
+    QString cleanPath = filePath;
+    int queryIdx = filePath.indexOf('?');
+    if (queryIdx != -1) {
+        cleanPath = filePath.left(queryIdx);
+    }
+    
+    QMutexLocker locker(&s_cacheMutex);
+    m_inMemoryRotations.remove(cleanPath);
+}
+
+int AsyncImageProvider::inMemoryRotation(const QString &filePath) const
+{
+    QString cleanPath = filePath;
+    int queryIdx = filePath.indexOf('?');
+    if (queryIdx != -1) {
+        cleanPath = filePath.left(queryIdx);
+    }
+    
+    QMutexLocker locker(&s_cacheMutex);
+    return m_inMemoryRotations.value(cleanPath, 0);
 }
 
 qint64 AsyncImageProvider::cacheSize() const
@@ -182,3 +274,4 @@ void AsyncImageProvider::ensureCacheDir()
 {
     QDir().mkpath(m_diskCachePath);
 }
+

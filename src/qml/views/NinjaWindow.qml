@@ -24,6 +24,43 @@ KaakaoWindow {
     property string currentFolderDescription: ""
     property bool loading: false
     property var folderSelections: ({})
+    property var rotationTimestamps: ({})
+
+    function getImageUrl(filePath) {
+        if (!filePath) return "";
+        let t = rotationTimestamps[filePath];
+        return "image://gallery/" + filePath + (t ? ("?t=" + t) : "");
+    }
+
+    function forceRefreshImage(filePath) {
+        let t = Date.now();
+        let copy = Object.assign({}, rotationTimestamps);
+        copy[filePath] = t;
+        rotationTimestamps = copy;
+    }
+
+    function rotateImage(angle) {
+        let index = previewOverlay.visible ? previewOverlay.currentIndex : galleryPanel.currentIndex;
+        if (index < 0 || galleryModel.isFolder(index)) {
+            return;
+        }
+        let path = galleryModel.getRawPath(index);
+        let result = fileActionService.rotateImage(path, angle);
+        if (result === 0) {
+            forceRefreshImage(path);
+        } else if (result === 1) {
+            forceRefreshImage(path);
+            rotationWarningDialog.open();
+        }
+    }
+
+    function isJpegFile(idx) {
+        if (idx < 0 || !galleryModel || idx >= galleryModel.count || galleryModel.isFolder(idx)) {
+            return false;
+        }
+        let path = String(galleryModel.getRawPath(idx)).toLowerCase();
+        return path.endsWith(".jpg") || path.endsWith(".jpeg");
+    }
 
     // Backwards-compatibility alias for testing
     property alias sidebarModel: sidebarPanel.sidebarModel
@@ -78,6 +115,24 @@ KaakaoWindow {
         sequence: "Ctrl+I"
         enabled: galleryPanel.currentIndex >= 0 && galleryModel.count > 0
         onActivated: root.showMainInfo = !root.showMainInfo
+    }
+
+    Shortcut {
+        sequence: "Ctrl+["
+        enabled: {
+            let idx = previewOverlay.visible ? previewOverlay.currentIndex : galleryPanel.currentIndex
+            return root.isJpegFile(idx)
+        }
+        onActivated: root.rotateImage(270)
+    }
+
+    Shortcut {
+        sequence: "Ctrl+]"
+        enabled: {
+            let idx = previewOverlay.visible ? previewOverlay.currentIndex : galleryPanel.currentIndex
+            return root.isJpegFile(idx)
+        }
+        onActivated: root.rotateImage(90)
     }
 
     // Menu Bar
@@ -173,6 +228,14 @@ KaakaoWindow {
 
     AboutDialog {
         id: aboutDialog
+    }
+
+    MessageDialog {
+        id: rotationWarningDialog
+        title: qsTr("Read-Only Image")
+        text: qsTr("This image file is not writable.")
+        informativeText: qsTr("NinjaView will display the rotated image for this session, but the changes cannot be saved back to the file.")
+        buttons: MessageDialog.Ok
     }
 
     Settings {
@@ -384,6 +447,26 @@ KaakaoWindow {
                         Item { Layout.fillWidth: true }
 
                         KaakaoToolButton {
+                            iconEmoji: "↺"
+                            text: qsTr("Rotate Left")
+                            enabled: {
+                                let idx = previewOverlay.visible ? previewOverlay.currentIndex : galleryPanel.currentIndex
+                                return root.isJpegFile(idx)
+                            }
+                            onClicked: root.rotateImage(270)
+                        }
+
+                        KaakaoToolButton {
+                            iconEmoji: "↻"
+                            text: qsTr("Rotate Right")
+                            enabled: {
+                                let idx = previewOverlay.visible ? previewOverlay.currentIndex : galleryPanel.currentIndex
+                                return root.isJpegFile(idx)
+                            }
+                            onClicked: root.rotateImage(90)
+                        }
+
+                        KaakaoToolButton {
                             iconEmoji: "🔍"
                             text: root.showMainInfo ? qsTr("Hide Info") : qsTr("Show Info")
                             enabled: galleryPanel.currentIndex >= 0 && galleryModel.count > 0
@@ -442,6 +525,8 @@ KaakaoWindow {
         id: previewOverlay
         objectName: "previewOverlay"
         model: galleryModel
+        getImageUrl: root.getImageUrl
+        rotateImage: root.rotateImage
         z: 100
     }
 }

@@ -9,10 +9,12 @@ class Logger;
 
 #include <atomic>
 
+class AsyncImageProvider;
+
 class AsyncImageResponse : public QQuickImageResponse, public QRunnable
 {
 public:
-    AsyncImageResponse(const QString &id, const QSize &requestedSize, QCache<QString, QImage> *cache, Logger *logger);
+    AsyncImageResponse(const QString &id, const QSize &requestedSize, AsyncImageProvider *provider, Logger *logger);
 
     void run() override;
     QQuickTextureFactory *textureFactory() const override;
@@ -21,7 +23,7 @@ public:
 private:
     QString m_id;
     QSize m_requestedSize;
-    QCache<QString, QImage> *m_cache;
+    AsyncImageProvider *m_provider;
     Logger *m_logger;
     QImage m_image;
     std::atomic<bool> m_isCancelled{false};
@@ -31,12 +33,14 @@ class AsyncImageProvider : public QQuickAsyncImageProvider
 {
     Q_OBJECT
     Q_PROPERTY(qint64 maxMemoryCacheSize READ maxMemoryCacheSize WRITE setMaxMemoryCacheSize NOTIFY maxMemoryCacheSizeChanged)
+    friend class AsyncImageResponse;
 
 public:
     AsyncImageProvider(Logger *logger = nullptr);
     QQuickImageResponse *requestImageResponse(const QString &id, const QSize &requestedSize) override;
 
     void clearCache();
+    Q_INVOKABLE void clearImageCache(const QString &filePath);
     
     // Cache management for Settings
     Q_INVOKABLE qint64 cacheSize() const;
@@ -46,6 +50,10 @@ public:
     qint64 maxMemoryCacheSize() const;
     void setMaxMemoryCacheSize(qint64 size);
 
+    void setInMemoryRotation(const QString &filePath, int angle);
+    void clearInMemoryRotation(const QString &filePath);
+    int inMemoryRotation(const QString &filePath) const;
+
 signals:
     void maxMemoryCacheSizeChanged();
 
@@ -53,5 +61,9 @@ private:
     QCache<QString, QImage> m_cache;
     Logger *m_logger;
     QString m_diskCachePath;
+    QHash<QString, QStringList> m_cachedKeys;
+    QHash<QString, int> m_inMemoryRotations;
     void ensureCacheDir();
+    void clearDiskCacheForFile(const QString &cleanPath);
 };
+

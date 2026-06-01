@@ -18,6 +18,8 @@ private slots:
     void testCancelRequest();
     void testClearCache();
     void testDiskCacheOps();
+    void testClearImageCacheSpecific();
+    void testInMemoryRotationDecodeAndQueryParam();
     void cleanupTestCase();
 };
 
@@ -209,6 +211,74 @@ void TestAsyncImageProvider::testDiskCacheOps()
     // clearDiskCache should not crash and should clear the cache directory
     provider.clearDiskCache();
     QCOMPARE(provider.cacheSize(), 0);
+}
+
+void TestAsyncImageProvider::testClearImageCacheSpecific()
+{
+    AsyncImageProvider provider;
+
+    QTemporaryFile tempFile(QDir::tempPath() + "/specificXXXXXX.png");
+    QVERIFY(tempFile.open());
+    QString filePath = tempFile.fileName();
+    QImage testImage(60, 60, QImage::Format_RGB32);
+    testImage.fill(Qt::blue);
+    QVERIFY(testImage.save(filePath, "PNG"));
+    tempFile.close();
+
+    // 1. Request image to populate memory and disk caches
+    QQuickImageResponse *response = provider.requestImageResponse(filePath, QSize(30, 30));
+    QSignalSpy spy(response, &QQuickImageResponse::finished);
+    QVERIFY(spy.wait(5000));
+    delete response;
+
+    // Check that disk cache size is greater than 0
+    qint64 sizeBefore = provider.cacheSize();
+    QVERIFY(sizeBefore > 0);
+
+    // 2. Clear image cache for this file
+    provider.clearImageCache(filePath);
+
+    // 3. Disk cache for this file should be removed
+    QCOMPARE(provider.cacheSize(), 0);
+}
+
+void TestAsyncImageProvider::testInMemoryRotationDecodeAndQueryParam()
+{
+    AsyncImageProvider provider;
+
+    QTemporaryFile tempFile(QDir::tempPath() + "/rotate_queryXXXXXX.png");
+    QVERIFY(tempFile.open());
+    QString filePath = tempFile.fileName();
+    QImage testImage(64, 32, QImage::Format_RGB32); // 64 wide, 32 high
+    testImage.fill(Qt::green);
+    QVERIFY(testImage.save(filePath, "PNG"));
+    tempFile.close();
+
+    // Set in-memory rotation using query parameters to test query parsing paths
+    QString filePathWithQuery = filePath + "?t=123456";
+    provider.setInMemoryRotation(filePathWithQuery, 90);
+    
+    // Check rotation is stored (with query stripped)
+    QCOMPARE(provider.inMemoryRotation(filePathWithQuery), 90);
+    QCOMPARE(provider.inMemoryRotation(filePath), 90);
+
+    // Request the image (which will decode it from source, see it has rotation, and rotate it)
+    QQuickImageResponse *response = provider.requestImageResponse(filePathWithQuery, QSize(32, 32));
+    QSignalSpy spy(response, &QQuickImageResponse::finished);
+    QVERIFY(spy.wait(5000));
+
+    QQuickTextureFactory *factory = response->textureFactory();
+    QVERIFY(factory != nullptr);
+    QImage resultImage = factory->image();
+    delete response;
+
+    // Width should be 16 and height 32 due to rotation of 64x32 scaled to fit 32x32
+    QCOMPARE(resultImage.width(), 16);
+    QCOMPARE(resultImage.height(), 32);
+
+    // Clear in-memory rotation
+    provider.clearInMemoryRotation(filePathWithQuery);
+    QCOMPARE(provider.inMemoryRotation(filePathWithQuery), 0);
 }
 
 QTEST_MAIN(TestAsyncImageProvider)
