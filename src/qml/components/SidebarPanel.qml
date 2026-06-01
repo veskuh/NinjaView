@@ -296,7 +296,12 @@ Item {
     KaakaoSidebar {
         id: sidebar
         objectName: "sidebar"
-        anchors.fill: parent
+        anchors {
+            top: parent.top
+            left: parent.left
+            right: parent.right
+            bottom: statusBar.top
+        }
 
         model: sidebarModel
 
@@ -312,8 +317,12 @@ Item {
         }
 
         onContextMenu: (index, pos) => {
-            sidebarContextMenu.targetIndex = index
-            sidebarContextMenu.popup(pos.x, pos.y)
+            if (index < 0 || index >= sidebarModel.count) return
+            let item = sidebarModel.get(index)
+            if (item && item.category === qsTr("Folders")) {
+                sidebarContextMenu.targetIndex = index
+                sidebarContextMenu.popup(pos.x, pos.y)
+            }
         }
 
         onCurrentIndexChanged: {
@@ -328,6 +337,130 @@ Item {
             
             panel.directorySelected(name, path, isPictures, isSdCard)
         }
+    }
+
+    KaakaoStatusBar {
+        id: statusBar
+        objectName: "sidebarStatusBar"
+        anchors {
+            left: parent.left
+            right: parent.right
+            bottom: parent.bottom
+        }
+        height: 23
+        leftPadding: 0
+        rightPadding: 0
+        spacing: 0
+        border.width: 0
+        color: Theme.sidebarBackground
+
+        Rectangle {
+            id: plusButton
+            objectName: "plusButton"
+            Layout.preferredWidth: 28
+            Layout.preferredHeight: statusBar.height - 1
+            Layout.alignment: Qt.AlignBottom
+            color: plusMouse.pressed ? (Theme.isDarkMode ? "#55FFFFFF" : "#1A000000") :
+                   plusMouse.containsMouse ? (Theme.isDarkMode ? "#33FFFFFF" : "#0D000000") : "transparent"
+            
+            Text {
+                anchors.centerIn: parent
+                text: "+"
+                font.pixelSize: 16
+                font.weight: Font.Light
+                color: Theme.primaryText
+            }
+            
+            MouseArea {
+                id: plusMouse
+                anchors.fill: parent
+                hoverEnabled: true
+                onClicked: panel.triggerFolderDialog()
+            }
+        }
+
+        Rectangle {
+            Layout.preferredWidth: 1
+            Layout.preferredHeight: statusBar.height - 1
+            Layout.alignment: Qt.AlignBottom
+            color: Theme.sidebarBorder
+        }
+
+        Rectangle {
+            id: minusButton
+            objectName: "minusButton"
+            Layout.preferredWidth: 28
+            Layout.preferredHeight: statusBar.height - 1
+            Layout.alignment: Qt.AlignBottom
+            readonly property bool isActive: {
+                if (sidebar.currentIndex < 0 || sidebar.currentIndex >= sidebarModel.count) return false;
+                let item = sidebarModel.get(sidebar.currentIndex);
+                return item && item.category === qsTr("Folders");
+            }
+            opacity: isActive ? 1.0 : 0.4
+            color: isActive && minusMouse.pressed ? (Theme.isDarkMode ? "#55FFFFFF" : "#1A000000") :
+                   isActive && minusMouse.containsMouse ? (Theme.isDarkMode ? "#33FFFFFF" : "#0D000000") : "transparent"
+            
+            Text {
+                anchors.centerIn: parent
+                text: "−"
+                font.pixelSize: 16
+                font.weight: Font.Light
+                color: Theme.primaryText
+            }
+            
+            MouseArea {
+                id: minusMouse
+                anchors.fill: parent
+                hoverEnabled: minusButton.isActive
+                enabled: minusButton.isActive
+                onClicked: {
+                    if (minusButton.isActive) {
+                        panel.triggerRemove(sidebar.currentIndex)
+                    }
+                }
+            }
+        }
+
+        Rectangle {
+            Layout.preferredWidth: 1
+            Layout.preferredHeight: statusBar.height - 1
+            Layout.alignment: Qt.AlignBottom
+            color: Theme.sidebarBorder
+        }
+
+        // Spacer to push everything to the left
+        Item {
+            Layout.fillWidth: true
+            Layout.preferredHeight: statusBar.height - 1
+            Layout.alignment: Qt.AlignBottom
+        }
+    }
+
+    // Top separator line (separates sidebar list from status bar)
+    Rectangle {
+        id: sidebarFooterTopBorder
+        anchors {
+            top: statusBar.top
+            left: statusBar.left
+            right: statusBar.right
+        }
+        height: 1
+        color: Theme.sidebarBorder
+        z: 10
+    }
+
+    // Right separator line (aligns with sidebar's right border)
+    Rectangle {
+        id: sidebarFooterRightBorder
+        anchors {
+            top: statusBar.top
+            bottom: statusBar.bottom
+            right: statusBar.right
+        }
+        width: 1
+        color: Theme.sidebarBorder
+        z: 10
     }
 
     Connections {

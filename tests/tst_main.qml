@@ -113,4 +113,30 @@ TestCase {
         // Cleanup
         mainApp.sidebarModel.remove(lastIndex)
     }
+
+    function test_sidebar_statusbar_buttons() {
+        var sidebar = findChild(mainApp, "sidebar")
+        var plusButton = findChild(mainApp, "plusButton")
+        var minusButton = findChild(mainApp, "minusButton")
+
+        verify(sidebar !== null, "Sidebar should be found")
+        verify(plusButton !== null, "Plus button should be found")
+        verify(minusButton !== null, "Minus button should be found")
+
+        // Initially index is probably 0 (Pictures, category Library)
+        sidebar.currentIndex = 0
+        verify(!minusButton.isActive, "Minus button should be disabled for Pictures")
+
+        // Add a mock user folder and select it
+        mainApp.sidebarModel.append({ name: "MockUserFolder", category: qsTr("Folders"), path: "/tmp/mock" })
+        var userFolderIndex = mainApp.sidebarModel.count - 1
+
+        sidebar.currentIndex = userFolderIndex
+        verify(minusButton.isActive, "Minus button should be active for user-added folders")
+
+        // Cleanup
+        mainApp.sidebarModel.remove(userFolderIndex)
+        sidebar.currentIndex = 0
+        verify(!minusButton.isActive, "Minus button should be disabled again after removing folder")
+    }
 }
