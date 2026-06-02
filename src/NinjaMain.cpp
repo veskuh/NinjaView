@@ -15,6 +15,7 @@
 #include "FileActionService.h"
 #include "Logger.h"
 #include "ExifDatabase.h"
+#include <QThreadPool>
 
 Q_IMPORT_PLUGIN(NinjaViewPlugin)
 
@@ -123,5 +124,7 @@ int main(int argc, char *argv[])
     }, Qt::QueuedConnection);
     engine.load(url);
 
-    return app.exec();
+    int ret = app.exec();
+    QThreadPool::globalInstance()->waitForDone();
+    return ret;
 }
