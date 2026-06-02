@@ -17,6 +17,7 @@ qt_add_library(NinjaViewLib STATIC
 qt_add_qml_module(NinjaViewLib
     URI NinjaView
     VERSION 1.0
+    NO_CACHEGEN
     RESOURCE_PREFIX "/qt/qml"
     QML_FILES
         qml/views/NinjaWindow.qml
