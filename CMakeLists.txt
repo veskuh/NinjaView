@@ -119,6 +119,7 @@ if(UNIX AND NOT APPLE)
     set(CPACK_RPM_PACKAGE_LICENSE "BSD-3-Clause")
     set(CPACK_RPM_PACKAGE_GROUP "Applications/Multimedia")
     set(CPACK_RPM_PACKAGE_REQUIRES "qt6-qtdeclarative, qt6-qt5compat")
+    set(CPACK_RPM_SPEC_MORE_DEFINE "%global __requires_exclude (Qt_.*_PRIVATE_API)")
 
     include(CPack)
 endif()
