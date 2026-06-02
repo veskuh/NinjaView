@@ -54,6 +54,14 @@ Rectangle {
                     value: root.name
                 },
                 {
+                    label: "Dimensions",
+                    value: root.exifData.Dimensions
+                },
+                {
+                    label: "Size",
+                    value: root.exifData.FileSize
+                },
+                {
                     label: "Make",
                     value: root.exifData.Make
                 },

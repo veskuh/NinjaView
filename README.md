@@ -7,8 +7,14 @@ NinjaView is a simple C++/Qt6 image viewer designed for previewing of photos, ta
 ## Features
 
 - Asynchronous image decoding with caching for fast gallery browsing.
+- Lossless JPEG rotation (modifies the EXIF orientation metadata on disk; falls back to session-only in-memory rotation on write-protected files such as camera SD cards).
 - Double-click any image to enter fullscreen viewing mode.
-- Full keyboard support (Arrow keys for cycling, Escape to exit) and touchpad scrolling.
+- Full keyboard support:
+  - Arrow keys for cycling through images.
+  - `Escape` to exit fullscreen view.
+  - `Ctrl + [` and `Ctrl + ]` to rotate JPEGs left/right in the gallery grid.
+  - `L` and `R` keys to rotate JPEGs left/right in fullscreen preview mode.
+  - Touchpad scrolling for navigation.
 - Classic Mac OS X inspired interface using custom QML components.
 - C++17 and Qt6 for performance and stability.
 

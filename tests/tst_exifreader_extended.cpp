@@ -36,7 +36,7 @@ void TestExifReaderExtended::testUnsupportedFormat()
 {
     // Create a temporary PNG file (no EXIF support)
     QTemporaryFile tmpFile;
-    tmpFile.setFileTemplate("/tmp/xxxxxx.png");
+    tmpFile.setFileTemplate(QDir::tempPath() + "/xxxxxx.png");
     QVERIFY(tmpFile.open());
     // Write a minimal PNG header
     QByteArray pngHeader = QByteArray::fromHex("89504E470D0A1A0A");
@@ -45,8 +45,10 @@ void TestExifReaderExtended::testUnsupportedFormat()
 
     ExifReader reader;
     QVariantMap data = reader.getExifData(tmpFile.fileName());
-    // PNG files should produce an empty map
-    QVERIFY(data.isEmpty());
+    // Should still return basic info like FileSize, but not EXIF data
+    QCOMPARE(data["FileSize"].toString(), "8 B");
+    QVERIFY(!data.contains("Dimensions"));
+    QVERIFY(!data.contains("Make"));
 }
 
 QTEST_MAIN(TestExifReaderExtended)

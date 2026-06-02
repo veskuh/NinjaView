@@ -158,6 +158,8 @@ Item {
                         { label: "Make", value: panel.exifData.Make },
                         { label: "Model", value: panel.exifData.Model },
                         { label: "Lens", value: panel.exifData.Lens },
+                        { label: "Dimensions", value: panel.exifData.Dimensions },
+                        { label: "Size", value: panel.exifData.FileSize },
                         { label: "Exposure", value: panel.exifData.Exposure },
                         { label: "Aperture", value: panel.exifData.Aperture },
                         { label: "ISO", value: panel.exifData.ISO },

@@ -64,14 +64,15 @@ bool ExifDatabase::init()
                          "exposure TEXT, "
                          "aperture TEXT, "
                          "iso INTEGER, "
-                         "datetime TEXT"
+                         "datetime TEXT, "
+                         "dimensions TEXT DEFAULT ''"
                          ")");
     if (!ok) {
         qWarning() << "ExifDatabase: Schema creation failed -" << query.lastError().text();
         return false;
     }
 
-    // Check and add missing columns dynamically: favorite, notes, tags
+    // Check and add missing columns dynamically: favorite, notes, tags, dimensions
     if (query.exec("PRAGMA table_info(exif_cache)")) {
         QSet<QString> columns;
         while (query.next()) {
@@ -90,6 +91,11 @@ bool ExifDatabase::init()
         if (!columns.contains("tags")) {
             if (!query.exec("ALTER TABLE exif_cache ADD COLUMN tags TEXT DEFAULT ''")) {
                 qWarning() << "ExifDatabase: Failed to add tags column -" << query.lastError().text();
+            }
+        }
+        if (!columns.contains("dimensions")) {
+            if (!query.exec("ALTER TABLE exif_cache ADD COLUMN dimensions TEXT DEFAULT ''")) {
+                qWarning() << "ExifDatabase: Failed to add dimensions column -" << query.lastError().text();
             }
         }
     } else {
@@ -126,7 +132,7 @@ QVariantMap ExifDatabase::getExifData(const QString &filePath)
     if (!db.isOpen()) return data;
 
     QSqlQuery query(db);
-    query.prepare("SELECT make, model, lens, exposure, aperture, iso, datetime, favorite, notes, tags FROM exif_cache WHERE file_path = :path");
+    query.prepare("SELECT make, model, lens, exposure, aperture, iso, datetime, favorite, notes, tags, dimensions, file_size FROM exif_cache WHERE file_path = :path");
     query.bindValue(":path", filePath);
 
     if (query.exec() && query.next()) {
@@ -140,6 +146,18 @@ QVariantMap ExifDatabase::getExifData(const QString &filePath)
         data["Favorite"] = query.value(7).toInt() == 1;
         data["Notes"] = query.value(8).toString();
         data["Tags"] = query.value(9).toString();
+        data["Dimensions"] = query.value(10).toString();
+        
+        qint64 sizeInBytes = query.value(11).toLongLong();
+        QString sizeStr;
+        if (sizeInBytes >= 1024 * 1024) {
+            sizeStr = QString("%1 MB").arg(double(sizeInBytes) / (1024.0 * 1024.0), 0, 'f', 2);
+        } else if (sizeInBytes >= 1024) {
+            sizeStr = QString("%1 KB").arg(double(sizeInBytes) / 1024.0, 0, 'f', 1);
+        } else {
+            sizeStr = QString("%1 B").arg(sizeInBytes);
+        }
+        data["FileSize"] = sizeStr;
     }
     return data;
 }
@@ -165,13 +183,13 @@ bool ExifDatabase::saveExifData(const QString &filePath, qint64 fileSize, const 
                       "file_size = :size, last_modified = :modified, "
                       "make = :make, model = :model, lens = :lens, "
                       "exposure = :exposure, aperture = :aperture, "
-                      "iso = :iso, datetime = :datetime "
+                      "iso = :iso, datetime = :datetime, dimensions = :dimensions "
                       "WHERE file_path = :path");
     } else {
         // Insert new record with defaults for favorite/notes/tags
         query.prepare("INSERT INTO exif_cache "
-                      "(file_path, file_size, last_modified, make, model, lens, exposure, aperture, iso, datetime, favorite, notes, tags) "
-                      "VALUES (:path, :size, :modified, :make, :model, :lens, :exposure, :aperture, :iso, :datetime, 0, '', '')");
+                      "(file_path, file_size, last_modified, make, model, lens, exposure, aperture, iso, datetime, favorite, notes, tags, dimensions) "
+                      "VALUES (:path, :size, :modified, :make, :model, :lens, :exposure, :aperture, :iso, :datetime, 0, '', '', :dimensions)");
     }
 
     query.bindValue(":path", filePath);
@@ -184,6 +202,7 @@ bool ExifDatabase::saveExifData(const QString &filePath, qint64 fileSize, const 
     query.bindValue(":aperture", exifData.value("Aperture").toString());
     query.bindValue(":iso", exifData.value("ISO").toInt());
     query.bindValue(":datetime", exifData.value("DateTime").toString());
+    query.bindValue(":dimensions", exifData.value("Dimensions").toString());
 
     bool ok = query.exec();
     if (!ok) {

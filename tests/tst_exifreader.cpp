@@ -19,6 +19,7 @@ private slots:
     void testUnreadableFile();
     void testRealImages();
     void testWithDatabaseSaveAndCacheHit();
+    void testExifReaderExtraCoverage();
     void cleanupTestCase();
 };
 
@@ -57,7 +58,8 @@ void TestExifReader::testEmptyFile()
 
     ExifReader reader;
     QVariantMap data = reader.getExifData(path);
-    QVERIFY(data.isEmpty());
+    QCOMPARE(data["FileSize"].toString(), "0 B");
+    QVERIFY(!data.contains("Dimensions"));
 }
 
 void TestExifReader::testInvalidFile()
@@ -71,7 +73,8 @@ void TestExifReader::testInvalidFile()
 
     ExifReader reader;
     QVariantMap data = reader.getExifData(path);
-    QVERIFY(data.isEmpty());
+    QCOMPARE(data["FileSize"].toString(), "34 B");
+    QVERIFY(!data.contains("Dimensions"));
 }
 
 void TestExifReader::testUnreadableFile()
@@ -88,7 +91,8 @@ void TestExifReader::testUnreadableFile()
 
     ExifReader reader;
     QVariantMap data = reader.getExifData(path);
-    QVERIFY(data.isEmpty());
+    QCOMPARE(data["FileSize"].toString(), "5 B");
+    QVERIFY(!data.contains("Dimensions"));
 
     // Restore permissions for cleanup
     QFile::setPermissions(path, QFileDevice::ReadOwner | QFileDevice::WriteOwner);
@@ -117,6 +121,8 @@ void TestExifReader::testRealImages()
         QVERIFY(data.contains("Exposure"));
         QVERIFY(data.contains("Aperture"));
         QVERIFY(data.contains("ISO"));
+        QVERIFY(data.contains("Dimensions"));
+        QVERIFY(data.contains("FileSize"));
         
         // Robust check for unprintable characters in all string keys
         for (auto it = data.constBegin(); it != data.constEnd(); ++it) {
@@ -163,6 +169,70 @@ void TestExifReader::testWithDatabaseSaveAndCacheHit()
     QCOMPARE(data2["Make"].toString(), data1["Make"].toString());
     QCOMPARE(data2["Model"].toString(), data1["Model"].toString());
     QCOMPARE(data2["ISO"].toInt(), data1["ISO"].toInt());
+}
+
+void TestExifReader::testExifReaderExtraCoverage()
+{
+    ExifDatabase db;
+    QVERIFY(db.init());
+    QVERIFY(db.clear());
+
+    ExifReader reader;
+    reader.setDatabase(&db);
+
+    QTemporaryDir tempDir;
+    QVERIFY(tempDir.isValid());
+
+    // 1. File size >= 1MB formatting path
+    QString path1 = tempDir.path() + "/large.jpg";
+    QFile file1(path1);
+    QVERIFY(file1.open(QIODevice::WriteOnly));
+    QByteArray dummyData(1.2 * 1024 * 1024, 'A');
+    QVERIFY(file1.write(dummyData) > 0);
+    file1.close();
+
+    QVariantMap data1 = reader.getExifData(path1);
+    QCOMPARE(data1["FileSize"].toString(), "1.20 MB");
+    QVERIFY(db.isCached(path1, dummyData.size(), QFileInfo(path1).lastModified()));
+
+    // 2. Database save on unreadable file path
+    QString path2 = tempDir.path() + "/noperm_db.jpg";
+    QFile file2(path2);
+    QVERIFY(file2.open(QIODevice::WriteOnly));
+    file2.write("dummy");
+    file2.close();
+    QVERIFY(QFile::setPermissions(path2, QFileDevice::WriteOwner));
+
+    QVariantMap data2 = reader.getExifData(path2);
+    QCOMPARE(data2["FileSize"].toString(), "5 B");
+    QVERIFY(db.isCached(path2, 5, QFileInfo(path2).lastModified()));
+    QFile::setPermissions(path2, QFileDevice::ReadOwner | QFileDevice::WriteOwner);
+
+    // 3. Database save on un-parsable (invalid JPEG) file path
+    QString path3 = tempDir.path() + "/invalid_db.jpg";
+    QFile file3(path3);
+    QVERIFY(file3.open(QIODevice::WriteOnly));
+    file3.write("invalid jpeg content");
+    file3.close();
+
+    QVariantMap data3 = reader.getExifData(path3);
+    QCOMPARE(data3["FileSize"].toString(), "20 B");
+    QVERIFY(db.isCached(path3, 20, QFileInfo(path3).lastModified()));
+
+    // 4. Backfill dimensions path
+    QString path4 = tempDir.path() + "/real_backfill.jpg";
+    QVERIFY(QFile::copy("data/canon-g9-x.jpg", path4));
+    QFileInfo fi4(path4);
+
+    QVariantMap dataManual;
+    dataManual["Make"] = "ManualMake";
+    dataManual["Model"] = "ManualModel";
+    QVERIFY(db.saveExifData(path4, fi4.size(), fi4.lastModified(), dataManual));
+
+    QVariantMap dataBackfilled = reader.getExifData(path4);
+    QCOMPARE(dataBackfilled["Make"].toString(), "ManualMake");
+    QVERIFY(!dataBackfilled["Dimensions"].toString().isEmpty());
+    QVERIFY(!dataBackfilled["DateTime"].toString().isEmpty());
 }
 
 QTEST_MAIN(TestExifReader)

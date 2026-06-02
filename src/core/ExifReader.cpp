@@ -4,6 +4,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QDebug>
+#include <QImageReader>
 
 static QString cleanExifString(const std::string &s)
 {
@@ -39,20 +40,71 @@ QVariantMap ExifReader::getExifData(const QString &filePath)
     }
 
     if (m_db && m_db->isCached(filePath, fileInfo.size(), fileInfo.lastModified())) {
-        return m_db->getExifData(filePath);
+        data = m_db->getExifData(filePath);
+        bool updated = false;
+        // Backfill dimensions if they are missing from existing database record
+        if (data.value("Dimensions").toString().isEmpty()) {
+            QImageReader reader(filePath);
+            if (reader.canRead()) {
+                QSize imgSize = reader.size();
+                if (imgSize.isValid()) {
+                    QString dim = QString("%1x%2").arg(imgSize.width()).arg(imgSize.height());
+                    data["Dimensions"] = dim;
+                    updated = true;
+                }
+            }
+        }
+        // Backfill DateTime with fs timestamp if it is empty
+        if (data.value("DateTime").toString().isEmpty()) {
+            data["DateTime"] = fileInfo.lastModified().toString("yyyy:MM:dd HH:mm:ss");
+            updated = true;
+        }
+        if (updated) {
+            m_db->saveExifData(filePath, fileInfo.size(), fileInfo.lastModified(), data);
+        }
+        return data;
     }
+
+    // Extract basic properties
+    QImageReader reader(filePath);
+    if (reader.canRead()) {
+        QSize imgSize = reader.size();
+        if (imgSize.isValid()) {
+            data["Dimensions"] = QString("%1x%2").arg(imgSize.width()).arg(imgSize.height());
+        }
+    }
+
+    qint64 sizeInBytes = fileInfo.size();
+    QString sizeStr;
+    if (sizeInBytes >= 1024 * 1024) {
+        sizeStr = QString("%1 MB").arg(double(sizeInBytes) / (1024.0 * 1024.0), 0, 'f', 2);
+    } else if (sizeInBytes >= 1024) {
+        sizeStr = QString("%1 KB").arg(double(sizeInBytes) / 1024.0, 0, 'f', 1);
+    } else {
+        sizeStr = QString("%1 B").arg(sizeInBytes);
+    }
+    data["FileSize"] = sizeStr;
+    // Fallback timestamp using last modified time
+    data["DateTime"] = fileInfo.lastModified().toString("yyyy:MM:dd HH:mm:ss");
 
     QFile file(filePath);
     if (!file.open(QIODevice::ReadOnly)) {
         qWarning() << "ExifReader: Cannot open file" << filePath;
+        if (m_db) {
+            m_db->saveExifData(filePath, fileInfo.size(), fileInfo.lastModified(), data);
+        }
         return data;
     }
 
     QByteArray buffer = file.readAll();
+    file.close();
+
     easyexif::EXIFInfo info;
-    
     if (info.parseFrom((unsigned char *)buffer.data(), buffer.size()) != 0) {
-        // Many files might not have EXIF, just return empty map
+        // No EXIF data, save basic info to cache and return
+        if (m_db) {
+            m_db->saveExifData(filePath, fileInfo.size(), fileInfo.lastModified(), data);
+        }
         return data;
     }
 
@@ -68,7 +120,10 @@ QVariantMap ExifReader::getExifData(const QString &filePath)
     }
     data["FocalLength"] = focalLength;
     
-    data["DateTime"] = cleanExifString(info.DateTime);
+    QString exifDate = cleanExifString(info.DateTime);
+    if (!exifDate.isEmpty()) {
+        data["DateTime"] = exifDate;
+    }
     
     // Improved Lens info
     QString lensModel = cleanExifString(info.LensInfo.Model);
