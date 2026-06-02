@@ -45,6 +45,15 @@ void GalleryFilterProxyModel::setCurrentFolderPath(const QString &path)
     }
 }
 
+void GalleryFilterProxyModel::setSearchQuery(const QString &query)
+{
+    if (m_searchQuery != query) {
+        m_searchQuery = query;
+        emit searchQueryChanged();
+        invalidateFilter();
+    }
+}
+
 void GalleryFilterProxyModel::clear()
 {
     auto srcModel = qobject_cast<GalleryListModel*>(sourceModel());
@@ -112,10 +121,46 @@ bool GalleryFilterProxyModel::filterAcceptsRow(int source_row, const QModelIndex
 
     // Folders are accepted unless we are in a smart folder
     if (srcModel->isFolder(source_row)) {
-        return !m_currentFolderPath.startsWith("smart://");
+        if (m_currentFolderPath.startsWith("smart://")) {
+            return false;
+        }
+        if (!m_searchQuery.isEmpty()) {
+            return srcModel->getFileName(source_row).contains(m_searchQuery, Qt::CaseInsensitive);
+        }
+        return true;
     }
 
     QString filePath = srcModel->getRawPath(source_row);
+
+    // Apply search query criteria for files
+    if (!m_searchQuery.isEmpty()) {
+        bool matches = false;
+
+        // 1. Filename match
+        QString fileName = srcModel->getFileName(source_row);
+        if (fileName.contains(m_searchQuery, Qt::CaseInsensitive)) {
+            matches = true;
+        }
+
+        // 2. Notes and tags match
+        if (!matches && m_db) {
+            QString notes = m_db->getNotes(filePath);
+            if (notes.contains(m_searchQuery, Qt::CaseInsensitive)) {
+                matches = true;
+            }
+
+            if (!matches) {
+                QString tags = m_db->getTags(filePath);
+                if (tags.contains(m_searchQuery, Qt::CaseInsensitive)) {
+                    matches = true;
+                }
+            }
+        }
+
+        if (!matches) {
+            return false;
+        }
+    }
 
     // Apply smart folder criteria
     if (m_currentFolderPath == "smart://favorites") {

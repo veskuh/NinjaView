@@ -194,6 +194,47 @@ void TestGalleryFilterProxyModel::testFiltering()
     // Reset currentFolderPath to empty/normal
     proxyModel.setCurrentFolderPath("");
     QCOMPARE(proxyModel.rowCount(), 4);
+
+    // Test search functionality
+    // 1. Match by filename (case-insensitive)
+    proxyModel.setSearchQuery("TODAY");
+    // "today.jpg" matches "TODAY". Folder name is "test_dir", so folder is filtered out.
+    QCOMPARE(proxyModel.rowCount(), 1);
+    QCOMPARE(proxyModel.getRawPath(0), fileToday);
+
+    // 2. Match folder by name
+    proxyModel.setSearchQuery("test");
+    // "test_dir" matches. Filenames today.jpg, old.jpg, photo.png do not.
+    QCOMPARE(proxyModel.rowCount(), 1);
+    QCOMPARE(proxyModel.getRawPath(0), folderPath);
+
+    // 3. Match by notes
+    QVERIFY(db.setNotes(fileOld, "special vacation photo"));
+    proxyModel.setSearchQuery("special");
+    QCOMPARE(proxyModel.rowCount(), 1);
+    QCOMPARE(proxyModel.getRawPath(0), fileOld);
+
+    // 4. Match by tags
+    QVERIFY(db.setTags(filePng, "nature, waterfall, landscape"));
+    proxyModel.setSearchQuery("land");
+    QCOMPARE(proxyModel.rowCount(), 1);
+    QCOMPARE(proxyModel.getRawPath(0), filePng);
+
+    // 5. Combining search with filterType
+    proxyModel.setSearchQuery("photo"); // "photo.png" matches filename, and notes of fileOld match "special vacation photo"
+    QCOMPARE(proxyModel.rowCount(), 2);
+    QCOMPARE(proxyModel.getRawPath(0), fileOld);
+    QCOMPARE(proxyModel.getRawPath(1), filePng);
+
+    proxyModel.setFilterType("JPG");
+    // Should accept fileOld since it matches "photo" in notes and is a JPG (filePng is a PNG)
+    QCOMPARE(proxyModel.rowCount(), 1);
+    QCOMPARE(proxyModel.getRawPath(0), fileOld);
+
+    // Reset filters
+    proxyModel.setSearchQuery("");
+    proxyModel.setFilterType("All");
+    QCOMPARE(proxyModel.rowCount(), 4);
 }
 
 QTEST_MAIN(TestGalleryFilterProxyModel)

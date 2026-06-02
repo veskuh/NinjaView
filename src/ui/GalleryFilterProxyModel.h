@@ -12,6 +12,7 @@ class GalleryFilterProxyModel : public QSortFilterProxyModel
     Q_PROPERTY(QString filterType READ filterType WRITE setFilterType NOTIFY filterTypeChanged)
     Q_PROPERTY(QString cameraFilter READ cameraFilter WRITE setCameraFilter NOTIFY cameraFilterChanged)
     Q_PROPERTY(QString currentFolderPath READ currentFolderPath WRITE setCurrentFolderPath NOTIFY currentFolderPathChanged)
+    Q_PROPERTY(QString searchQuery READ searchQuery WRITE setSearchQuery NOTIFY searchQueryChanged)
     Q_PROPERTY(int count READ rowCount NOTIFY countChanged)
 
 public:
@@ -25,6 +26,9 @@ public:
 
     QString currentFolderPath() const { return m_currentFolderPath; }
     void setCurrentFolderPath(const QString &path);
+
+    QString searchQuery() const { return m_searchQuery; }
+    void setSearchQuery(const QString &query);
 
     void setDatabase(ExifDatabase *db) { m_db = db; }
 
@@ -43,6 +47,7 @@ signals:
     void filterTypeChanged();
     void cameraFilterChanged();
     void currentFolderPathChanged();
+    void searchQueryChanged();
     void countChanged();
 
 protected:
@@ -52,6 +57,7 @@ private:
     QString m_filterType{"All"};
     QString m_cameraFilter{""};
     QString m_currentFolderPath{""};
+    QString m_searchQuery{""};
     ExifDatabase *m_db{nullptr};
 
     bool matchDate(const QDateTime &dateTime, const QString &type) const;

@@ -472,6 +472,13 @@ KaakaoWindow {
                             enabled: galleryPanel.currentIndex >= 0 && galleryModel.count > 0
                             onClicked: root.showMainInfo = !root.showMainInfo
                         }
+
+                        KaakaoSearchField {
+                            id: searchField
+                            placeholderText: qsTr("Search...")
+                            implicitWidth: 150
+                            onTextChanged: galleryModel.searchQuery = text
+                        }
                     }
                 }
 

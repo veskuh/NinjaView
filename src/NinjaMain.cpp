@@ -45,6 +45,8 @@ int main(int argc, char *argv[])
                      &filterModel, &GalleryFilterProxyModel::invalidateFilter);
     QObject::connect(&exifDb, &ExifDatabase::tagsChanged,
                      &filterModel, &GalleryFilterProxyModel::invalidateFilter);
+    QObject::connect(&exifDb, &ExifDatabase::notesChanged,
+                     &filterModel, &GalleryFilterProxyModel::invalidateFilter);
     
     FileDiscoveryService discoveryService;
     discoveryService.setDatabase(&exifDb);
