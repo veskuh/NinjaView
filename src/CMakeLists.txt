@@ -24,6 +24,8 @@ qt_add_qml_module(NinjaViewLib
         qml/views/PreviewOverlay.qml
         qml/components/ZoomableImage.qml
         qml/components/SidebarPanel.qml
+        qml/components/SidebarModel.qml
+        qml/components/NinjaToolBar.qml
         qml/components/GalleryPanel.qml
         qml/components/ImageInfoPanel.qml
         qml/components/ExifOverlay.qml

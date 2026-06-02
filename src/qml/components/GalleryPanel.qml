@@ -89,6 +89,7 @@ Item {
 
     KaakaoSheet {
         id: deleteConfirmationDialog
+        objectName: "deleteConfirmationDialog"
         width: 400
         height: 170
         property int targetIndex: -1
@@ -212,6 +213,7 @@ Item {
 
     KaakaoScopeBar {
         id: filterScopeBar
+        objectName: "filterScopeBar"
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.right: parent.right

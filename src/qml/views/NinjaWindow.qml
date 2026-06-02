@@ -95,6 +95,8 @@ KaakaoWindow {
     }
 
     Shortcut {
+        id: deleteShortcut
+        objectName: "deleteShortcut"
         sequences: [StandardKey.Delete, "Backspace"]
         enabled: !previewOverlay.visible && galleryPanel.gridView.activeFocus && galleryPanel.currentIndex >= 0 && !galleryModel.isFolder(galleryPanel.currentIndex)
         onActivated: {
@@ -366,119 +368,25 @@ KaakaoWindow {
                 anchors.fill: parent
                 spacing: 0
 
-                KaakaoToolBar {
+                NinjaToolBar {
                     Layout.fillWidth: true
-                    RowLayout {
-                        anchors {
-                            fill: parent
-                            leftMargin: 10
-                            rightMargin: 10
-                        }
-                        
-                        Column {
-                            spacing: 0
-                             KaakaoLabel {
-                                 text: root.currentTitle
-                                 role: KaakaoLabel.Header
-                                 visible: root.currentFolderDescription === "" || root.currentFolderDescription.startsWith("smart://")
-                             }
-                             KaakaoPathControl {
-                                 id: pathControl
-                                 objectName: "pathControl"
-                                 
-                                 readonly property string homePath: String(StandardPaths.writableLocation(StandardPaths.HomeLocation)).replace("file://", "")
-                                 readonly property string displayBasePath: {
-                                     let p = String(root.currentFolderDescription).replace("file://", "")
-                                     if (p.startsWith(homePath)) return homePath
-                                     return "/"
-                                 }
-                                 
-                                 rootLabel: {
-                                     if (displayBasePath === "/") return qsTr("Root")
-                                     return displayBasePath.substring(displayBasePath.lastIndexOf("/") + 1)
-                                 }
-                                 
-                                 path: {
-                                     let p = String(root.currentFolderDescription).replace("file://", "")
-                                     if (p.startsWith(displayBasePath)) {
-                                         let rel = p.substring(displayBasePath.length)
-                                         if (rel.startsWith("/")) rel = rel.substring(1)
-                                         return rel
-                                     }
-                                     return p
-                                 }
-                                 
-                                 visible: root.currentFolderDescription !== "" && !root.currentFolderDescription.startsWith("smart://")
-                                
-                                onPathClicked: (targetPath) => {
-                                    // Reconstruct absolute path
-                                    let fullPath = displayBasePath
-                                    if (targetPath !== "") {
-                                        if (fullPath !== "/") {
-                                            fullPath += "/" + targetPath
-                                        } else {
-                                            fullPath += targetPath
-                                        }
-                                    }
-                                    
-                                    // Extract folder name for title
-                                    let parts = targetPath.split("/")
-                                    let name = parts[parts.length - 1] || root.currentTitle
-                                    if (targetPath === "") {
-                                        if (displayBasePath === "/") name = qsTr("Root")
-                                        else name = displayBasePath.substring(displayBasePath.lastIndexOf("/") + 1)
-                                    }
-                                    
-                                    // Update state
-                                    root.currentTitle = name
-                                    root.currentFolderDescription = fullPath
-                                    
-                                    // Deselect sidebar since we are now browsing away from the bookmark
-                                    sidebarPanel.sidebar.currentIndex = -1
-                                    
-                                    // Navigate
-                                    galleryModel.clear()
-                                    root.loading = true
-                                    discoveryService.scanDirectory(fullPath, false)
-                                }
-                            }
-                        }
-                        
-                        Item { Layout.fillWidth: true }
-
-                        KaakaoToolButton {
-                            iconEmoji: "↺"
-                            text: qsTr("Rotate Left")
-                            enabled: {
-                                let idx = previewOverlay.visible ? previewOverlay.currentIndex : galleryPanel.currentIndex
-                                return root.isJpegFile(idx)
-                            }
-                            onClicked: root.rotateImage(270)
-                        }
-
-                        KaakaoToolButton {
-                            iconEmoji: "↻"
-                            text: qsTr("Rotate Right")
-                            enabled: {
-                                let idx = previewOverlay.visible ? previewOverlay.currentIndex : galleryPanel.currentIndex
-                                return root.isJpegFile(idx)
-                            }
-                            onClicked: root.rotateImage(90)
-                        }
-
-                        KaakaoToolButton {
-                            iconEmoji: "🔍"
-                            text: root.showMainInfo ? qsTr("Hide Info") : qsTr("Show Info")
-                            enabled: galleryPanel.currentIndex >= 0 && galleryModel.count > 0
-                            onClicked: root.showMainInfo = !root.showMainInfo
-                        }
-
-                        KaakaoSearchField {
-                            id: searchField
-                            placeholderText: qsTr("Search...")
-                            implicitWidth: 150
-                            onTextChanged: galleryModel.searchQuery = text
-                        }
+                    
+                    currentFolderDescription: root.currentFolderDescription
+                    currentTitle: root.currentTitle
+                    previewOverlayCurrentIndex: previewOverlay.currentIndex
+                    galleryPanelCurrentIndex: galleryPanel.currentIndex
+                    previewOverlayVisible: previewOverlay.visible
+                    showMainInfo: root.showMainInfo
+                    
+                    onRotateImage: (angle) => root.rotateImage(angle)
+                    onToggleShowMainInfo: root.showMainInfo = !root.showMainInfo
+                    onPathClicked: (fullPath, name) => {
+                        root.currentTitle = name
+                        root.currentFolderDescription = fullPath
+                        sidebarPanel.sidebar.currentIndex = -1
+                        galleryModel.clear()
+                        root.loading = true
+                        discoveryService.scanDirectory(fullPath, false)
                     }
                 }
 

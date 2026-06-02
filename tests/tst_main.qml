@@ -139,4 +139,92 @@ TestCase {
         sidebar.currentIndex = 0
         verify(!minusButton.isActive, "Minus button should be disabled again after removing folder")
     }
+
+    function test_toolbar_search_and_actions() {
+        var searchField = findChild(mainApp, "searchField")
+        verify(searchField !== null, "Search field should be found")
+        
+        // 1. Clear model and populate mock items
+        rawGalleryModel.clear()
+        rawGalleryModel.addImages(["/tmp/photo_cat.jpg", "/tmp/photo_dog.png", "/tmp/other_vacation.jpg"])
+        
+        // Ensure all are loaded
+        compare(galleryModel.count, 3, "Should have 3 items initially")
+        
+        // 2. Search for "cat"
+        searchField.text = "cat"
+        compare(galleryModel.searchQuery, "cat", "Search query should propagate to model")
+        compare(galleryModel.count, 1, "Only 1 item should match 'cat'")
+        compare(galleryModel.getRawPath(0), "/tmp/photo_cat.jpg", "Matched path should be cat")
+        
+        // 3. Search for "photo" (matches two files)
+        searchField.text = "photo"
+        compare(galleryModel.count, 2, "2 items should match 'photo'")
+        
+        // 4. Search for something non-existent
+        searchField.text = "xyz"
+        compare(galleryModel.count, 0, "No items should match 'xyz'")
+        
+        // 5. Clear search text
+        searchField.text = ""
+        compare(galleryModel.searchQuery, "", "Search query should be cleared")
+        compare(galleryModel.count, 3, "All 3 items should be restored")
+        
+        // Clean up
+        rawGalleryModel.clear()
+    }
+
+    function test_scope_bar_filtering() {
+        var scopeBar = findChild(mainApp, "filterScopeBar")
+        verify(scopeBar !== null, "Filter scope bar should be found")
+        
+        // Set a mock scope bar model list
+        scopeBar.model = ["All", "JPG", "PNG", "WEBP"]
+        
+        // 1. Initially index 0 ("All")
+        scopeBar.currentIndex = 0
+        compare(galleryModel.filterType, "All", "Initial filter should be All")
+        
+        // 2. Select index 1 ("JPG")
+        scopeBar.currentIndex = 1
+        compare(galleryModel.filterType, "JPG", "Filter should change to JPG")
+        
+        // 3. Select index 2 ("PNG")
+        scopeBar.currentIndex = 2
+        compare(galleryModel.filterType, "PNG", "Filter should change to PNG")
+        
+        // Reset
+        scopeBar.currentIndex = 0
+        compare(galleryModel.filterType, "All", "Filter should be reset to All")
+    }
+
+    function test_delete_dialog_shortcut() {
+        var grid = findChild(mainApp, "galleryGrid")
+        var deleteShortcut = findChild(mainApp, "deleteShortcut")
+        var confirmDialog = findChild(mainApp, "deleteConfirmationDialog")
+        
+        verify(grid !== null, "Grid should be found")
+        verify(deleteShortcut !== null, "Delete shortcut should be found")
+        verify(confirmDialog !== null, "Confirm dialog should be found")
+        
+        // Ensure some items exist
+        rawGalleryModel.clear()
+        rawGalleryModel.addImages(["/tmp/test_delete.jpg"])
+        
+        grid.currentIndex = 0
+        grid.gridView.forceActiveFocus()
+        
+        // Activate deletion shortcut
+        deleteShortcut.activated()
+        
+        // Verification: confirmation dialog is opened
+        tryVerify(function() { return confirmDialog.visible }, 2000, "Shortcut should open deletion confirmation dialog")
+        
+        // Close the dialog
+        confirmDialog.close()
+        tryVerify(function() { return !confirmDialog.visible }, 2000, "Dialog should close")
+        
+        // Clean up
+        rawGalleryModel.clear()
+    }
 }

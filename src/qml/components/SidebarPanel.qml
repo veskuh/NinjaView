@@ -21,45 +21,12 @@ Item {
     readonly property alias sidebar: sidebar
 
     function addFolder(path) {
-        // Deduplication
-        for (let i = 0; i < sidebarModel.count; ++i) {
-            if (sidebarModel.get(i).path === path) {
-                sidebar.currentIndex = i
-                return
-            }
-        }
-
-        let decodedPath = decodeURIComponent(path)
-        let parts = decodedPath.split("/")
-        let name = parts[parts.length - 1] || parts[parts.length - 2] || decodedPath
-        if (name.endsWith("/")) name = name.substring(0, name.length - 1)
-
-        sidebarModel.append({ 
-            name: name, 
-            icon: "📁", 
-            category: qsTr("Folders"), 
-            path: path 
-        })
-        
-        // Save to settings
-        let folders = JSON.parse(panel.settings.savedFolders)
-        folders.push(path)
-        panel.settings.savedFolders = JSON.stringify(folders)
-        
-        sidebar.currentIndex = sidebarModel.count - 1
+        let newIdx = sidebarModel.addFolder(path)
+        sidebar.currentIndex = newIdx
     }
 
     function removeFolder(index) {
-        let item = sidebarModel.get(index)
-        if (item.path === undefined) return
-        
-        let path = item.path
-        sidebarModel.remove(index)
-        
-        let folders = JSON.parse(panel.settings.savedFolders)
-        let newFolders = folders.filter(f => f !== path)
-        panel.settings.savedFolders = JSON.stringify(newFolders)
-        
+        sidebarModel.removeFolder(index)
         if (sidebar.currentIndex === index) {
             sidebar.currentIndex = 0
         }
@@ -78,40 +45,6 @@ Item {
         }
     }
 
-    function loadSidebar() {
-        sidebarModel.clear()
-        sidebarModel.append({ name: qsTr("Pictures"), icon: "🖼️", category: qsTr("Library") })
-        sidebarModel.append({ name: qsTr("Favorites"), icon: "★", iconColor: "#FFC107", category: qsTr("Library"), path: "smart://favorites" })
-        sidebarModel.append({ name: qsTr("SD Card"), icon: "💾", category: qsTr("Devices") })
-        
-        let folders = JSON.parse(panel.settings.savedFolders)
-        for (let i = 0; i < folders.length; ++i) {
-            let path = folders[i]
-            let parts = path.split("/")
-            let name = parts[parts.length - 1] || parts[parts.length - 2] || path
-            sidebarModel.append({ 
-                name: name, 
-                icon: "📁", 
-                category: qsTr("Folders"), 
-                path: path 
-            })
-        }
-
-        // Load dynamic tags from database
-        if (typeof exifDatabase !== 'undefined' && exifDatabase) {
-            let tags = exifDatabase.getAllTags()
-            for (let i = 0; i < tags.length; ++i) {
-                let tag = tags[i]
-                sidebarModel.append({
-                    name: tag,
-                    icon: "🏷️",
-                    category: qsTr("Tags"),
-                    path: "smart://tag/" + tag
-                })
-            }
-        }
-    }
-
     function refreshSidebar() {
         panel.blockNavigation = true
         // Save current selection state
@@ -126,7 +59,7 @@ Item {
         }
 
         // Reload
-        loadSidebar()
+        sidebarModel.loadSidebar()
 
         // Restore selection index
         let newIndex = -1
@@ -144,11 +77,12 @@ Item {
     }
 
     Component.onCompleted: {
-        loadSidebar()
+        sidebarModel.loadSidebar()
     }
 
-    ListModel {
+    SidebarModel {
         id: sidebarModel
+        settings: panel.settings
     }
 
     FolderDialog {
