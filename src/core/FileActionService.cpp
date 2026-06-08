@@ -119,8 +119,14 @@ int FileActionService::rotateImage(const QString &filePath, int angle)
 
     // Write the new orientation to the file
     if (!writeExifOrientation(localPath, newOrientation)) {
-        qWarning() << "rotateImage: Failed to write new EXIF orientation:" << localPath;
-        return -1;
+        // JPEG may have no EXIF block (e.g. freshly created or exported without metadata).
+        // Fall back to an in-memory rotation so the image appears correct for this session.
+        qWarning() << "rotateImage: No writable EXIF orientation tag found, using in-memory fallback:" << localPath;
+        if (m_imageProvider) {
+            m_imageProvider->setInMemoryRotation(localPath, normalizedAngle);
+        }
+        emit imageRotated(localPath);
+        return 1; // In-memory-only success
     }
 
     // Clear any temporary in-memory rotation if the file is now successfully rotated on disk

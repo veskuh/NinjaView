@@ -210,7 +210,8 @@ void TestFileActionService::testRotateEmptyFile()
     file.close();
 
     FileActionService service;
-    QCOMPARE(service.rotateImage(path, 90), -1);
+    // Empty file has no EXIF orientation tag; falls back to in-memory rotation.
+    QCOMPARE(service.rotateImage(path, 90), 1);
 }
 
 void TestFileActionService::testRotateInvalidJpegMarker()
@@ -224,7 +225,8 @@ void TestFileActionService::testRotateInvalidJpegMarker()
     file.close();
 
     FileActionService service;
-    QCOMPARE(service.rotateImage(path, 90), -1);
+    // Not a valid JPEG; no orientation tag found — falls back to in-memory rotation.
+    QCOMPARE(service.rotateImage(path, 90), 1);
 }
 
 void TestFileActionService::testRotateJpegWithoutExif()
@@ -240,8 +242,8 @@ void TestFileActionService::testRotateJpegWithoutExif()
     file.close();
 
     FileActionService service;
-    // rotateImage will fail because writeExifOrientation will return false since there's no EXIF block
-    QCOMPARE(service.rotateImage(path, 90), -1);
+    // JPEG without EXIF has no orientation tag; falls back to in-memory rotation.
+    QCOMPARE(service.rotateImage(path, 90), 1);
 }
 
 void TestFileActionService::testRotateJpegWithInvalidExifHeader()
@@ -257,7 +259,8 @@ void TestFileActionService::testRotateJpegWithInvalidExifHeader()
     file.close();
 
     FileActionService service;
-    QCOMPARE(service.rotateImage(path, 90), -1);
+    // APP1 header is not "Exif"; no orientation tag found — falls back to in-memory rotation.
+    QCOMPARE(service.rotateImage(path, 90), 1);
 }
 
 void TestFileActionService::testRotateJpegWithInvalidTiffByteOrder()
@@ -273,7 +276,8 @@ void TestFileActionService::testRotateJpegWithInvalidTiffByteOrder()
     file.close();
 
     FileActionService service;
-    QCOMPARE(service.rotateImage(path, 90), -1);
+    // Invalid TIFF byte order; no orientation tag found — falls back to in-memory rotation.
+    QCOMPARE(service.rotateImage(path, 90), 1);
 }
 
 void TestFileActionService::testRotateImageFileUrl()
@@ -363,7 +367,8 @@ void TestFileActionService::testRotateJpegInvalidStructure()
     file.close();
 
     FileActionService service;
-    QCOMPARE(service.rotateImage(path, 90), -1);
+    // Malformed JPEG structure; no orientation tag found — falls back to in-memory rotation.
+    QCOMPARE(service.rotateImage(path, 90), 1);
 }
 
 void TestFileActionService::testRotateJpegEarlyStartOfScan()
@@ -379,7 +384,8 @@ void TestFileActionService::testRotateJpegEarlyStartOfScan()
     file.close();
 
     FileActionService service;
-    QCOMPARE(service.rotateImage(path, 90), -1);
+    // SOI immediately followed by EOI/SOS; no orientation tag — falls back to in-memory rotation.
+    QCOMPARE(service.rotateImage(path, 90), 1);
 }
 
 void TestFileActionService::testRotateJpegHugeIfdOffset()
@@ -395,7 +401,8 @@ void TestFileActionService::testRotateJpegHugeIfdOffset()
     file.close();
 
     FileActionService service;
-    QCOMPARE(service.rotateImage(path, 90), -1);
+    // IFD offset points past buffer bounds; no orientation tag — falls back to in-memory rotation.
+    QCOMPARE(service.rotateImage(path, 90), 1);
 }
 
 void TestFileActionService::testRotateJpegTruncatedFields()
@@ -411,7 +418,8 @@ void TestFileActionService::testRotateJpegTruncatedFields()
     file.close();
 
     FileActionService service;
-    QCOMPARE(service.rotateImage(path, 90), -1);
+    // IFD fields are truncated; no orientation tag found — falls back to in-memory rotation.
+    QCOMPARE(service.rotateImage(path, 90), 1);
 }
 
 void TestFileActionService::testRotateLittleEndianWritable()
