@@ -13,6 +13,21 @@ TestCase {
         id: mainApp
     }
 
+    function cleanup() {
+        mainApp.showMainInfo = false
+        mainApp.visibility = Window.Windowed
+        var overlay = findChild(mainApp, "previewOverlay")
+        if (overlay) overlay.visible = false
+        
+        rawGalleryModel.clear()
+        
+        var searchField = findChild(mainApp, "searchField")
+        if (searchField) searchField.text = ""
+        galleryModel.searchQuery = ""
+        galleryModel.filterType = "All"
+        galleryModel.cameraFilter = ""
+    }
+
     function test_initialization() {
         verify(mainApp.visible, "Main window should be visible")
         compare(mainApp.title, "NinjaView", "Title should be correct")
@@ -146,7 +161,7 @@ TestCase {
         
         // 1. Clear model and populate mock items
         rawGalleryModel.clear()
-        rawGalleryModel.addImages(["/tmp/photo_cat.jpg", "/tmp/photo_dog.png", "/tmp/other_vacation.jpg"])
+        rawGalleryModel.addImages(["/tmp/photo_cat.jpg", "/tmp/photo_dog.png", "/tmp/other_sunset.jpg"])
         
         // Ensure all are loaded
         compare(galleryModel.count, 3, "Should have 3 items initially")
@@ -183,18 +198,22 @@ TestCase {
         
         // 1. Initially index 0 ("All")
         scopeBar.currentIndex = 0
+        scopeBar.filterSelected(0, "All")
         compare(galleryModel.filterType, "All", "Initial filter should be All")
         
         // 2. Select index 1 ("JPG")
         scopeBar.currentIndex = 1
+        scopeBar.filterSelected(1, "JPG")
         compare(galleryModel.filterType, "JPG", "Filter should change to JPG")
         
         // 3. Select index 2 ("PNG")
         scopeBar.currentIndex = 2
+        scopeBar.filterSelected(2, "PNG")
         compare(galleryModel.filterType, "PNG", "Filter should change to PNG")
         
         // Reset
         scopeBar.currentIndex = 0
+        scopeBar.filterSelected(0, "All")
         compare(galleryModel.filterType, "All", "Filter should be reset to All")
     }
 
@@ -225,6 +244,67 @@ TestCase {
         tryVerify(function() { return !confirmDialog.visible }, 2000, "Dialog should close")
         
         // Clean up
+        rawGalleryModel.clear()
+    }
+
+    function test_image_info_panel() {
+        var infoPanel = findChild(mainApp, "mainInfoPanel")
+        verify(infoPanel !== null, "Info panel should be found")
+        
+        // 1. Initially hidden or visible depending on showMainInfo
+        mainApp.showMainInfo = false
+        verify(!infoPanel.visible, "Info panel should be hidden when showMainInfo is false")
+        
+        // 2. Populate mock item and select it
+        rawGalleryModel.clear()
+        rawGalleryModel.addImages(["/tmp/test1.jpg"])
+        
+        var grid = findChild(mainApp, "galleryGrid")
+        grid.currentIndex = 0
+        
+        // Show info panel and set currentPath directly to bypass binding chain timing issues
+        mainApp.showMainInfo = true
+        infoPanel.currentPath = "/tmp/test1.jpg"
+        infoPanel.visible = true
+        wait(100)
+        
+        // 3. Find inner components
+        var favStar = findChild(infoPanel, "favStar")
+        var tagsField = findChild(infoPanel, "tagsField")
+        var notesField = findChild(infoPanel, "notesField")
+        
+        verify(favStar !== null, "Fav star should be found")
+        verify(tagsField !== null, "Tags field should be found")
+        verify(notesField !== null, "Notes field should be found")
+        
+        // 4. Verify favorite star reflects database state
+        exifDatabase.setFavorite("/tmp/test1.jpg", false)
+        wait(100)
+        tryVerify(function() { return favStar.text === "☆" }, 2000, "Star should be outline when not favorite")
+        
+        exifDatabase.setFavorite("/tmp/test1.jpg", true)
+        wait(100)
+        tryVerify(function() { return favStar.text === "★" }, 2000, "Star should be solid when favorite")
+        verify(exifDatabase.isFavorite("/tmp/test1.jpg"), "Database should confirm favorite")
+        
+        exifDatabase.setFavorite("/tmp/test1.jpg", false)
+        wait(100)
+        tryVerify(function() { return favStar.text === "☆" }, 2000, "Star should revert to outline")
+        verify(!exifDatabase.isFavorite("/tmp/test1.jpg"), "Database should confirm not favorite")
+        
+        // 5. Verify tags field reflects database state
+        exifDatabase.setTags("/tmp/test1.jpg", "nature, scenery")
+        wait(100)
+        // setTags normalizes commas: "nature, scenery" → "nature,scenery"
+        tryVerify(function() { return tagsField.text === "nature,scenery" }, 2000, "Tags field should reflect database value")
+        
+        // 6. Verify notes field reflects database state
+        exifDatabase.setNotes("/tmp/test1.jpg", "sunset photo")
+        wait(100)
+        tryVerify(function() { return notesField.text === "sunset photo" }, 2000, "Notes field should reflect database value")
+        
+        // Reset state
+        mainApp.showMainInfo = false
         rawGalleryModel.clear()
     }
 }

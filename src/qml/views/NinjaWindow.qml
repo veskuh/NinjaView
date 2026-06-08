@@ -427,6 +427,7 @@ KaakaoWindow {
 
         ImageInfoPanel {
             id: mainInfoPanel
+            objectName: "mainInfoPanel"
             SplitView.preferredWidth: 250
             SplitView.minimumWidth: 200
             visible: root.showMainInfo && galleryPanel.currentIndex >= 0 && galleryModel.count > 0 && !galleryModel.isFolder(galleryPanel.currentIndex)

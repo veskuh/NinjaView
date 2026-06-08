@@ -135,12 +135,15 @@ Item {
 
                     Text {
                         id: favStar
+                        objectName: "favStar"
                         text: panel.exifData.Favorite ? "★" : "☆"
                         font.pixelSize: 22
                         color: panel.exifData.Favorite ? "#FFC107" : (Theme.isDarkMode ? "#66FFFFFF" : "#66000000")
                         Layout.alignment: Qt.AlignTop
                         
                         MouseArea {
+                            id: favStarMouseArea
+                            objectName: "favStarMouseArea"
                             anchors.fill: parent
                             cursorShape: Qt.PointingHandCursor
                             onClicked: {
@@ -209,6 +212,7 @@ Item {
 
                     KaakaoTextField {
                         id: tagsField
+                        objectName: "tagsField"
                         width: parent.width
                         placeholderText: qsTr("Add tags...")
                         
@@ -248,6 +252,7 @@ Item {
 
                     KaakaoTextArea {
                         id: notesField
+                        objectName: "notesField"
                         width: parent.width
                         implicitHeight: 80
                         placeholderText: qsTr("Add notes...")
