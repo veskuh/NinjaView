@@ -10,9 +10,14 @@ ListModel {
 
     function addFolder(path) {
         // Deduplication
+        let lastFolderIndex = -1
         for (let i = 0; i < model.count; ++i) {
-            if (model.get(i).path === path) {
+            let item = model.get(i)
+            if (item.path === path) {
                 return i
+            }
+            if (item.category === qsTr("Folders")) {
+                lastFolderIndex = i
             }
         }
 
@@ -21,11 +26,14 @@ ListModel {
         let name = parts[parts.length - 1] || parts[parts.length - 2] || decodedPath
         if (name.endsWith("/")) name = name.substring(0, name.length - 1)
 
-        model.append({ 
-            name: name, 
-            icon: "📁", 
-            category: qsTr("Folders"), 
-            path: path 
+        // Insert after the last existing Folders item, or append if none exist yet.
+        // This keeps all "Folders" items contiguous so the section header only appears once.
+        let insertAt = lastFolderIndex >= 0 ? lastFolderIndex + 1 : model.count
+        model.insert(insertAt, {
+            name: name,
+            icon: "📁",
+            category: qsTr("Folders"),
+            path: path
         })
         
         // Save to settings
@@ -33,7 +41,7 @@ ListModel {
         folders.push(path)
         model.settings.savedFolders = JSON.stringify(folders)
         
-        return model.count - 1
+        return insertAt
     }
 
     function removeFolder(index) {

@@ -36,8 +36,9 @@ void TestVolumeMonitor::testMountSignal()
         return initialVolumes;
     });
     
-    // Call checkVolumes to set initial state
+    // Call checkVolumes to set initial state and wait for it
     QVERIFY(QMetaObject::invokeMethod(&monitor, "checkVolumes"));
+    QTest::qWait(50);
     
     // Setup mock for new volume mount
     QList<VolumeMonitor::VolumeInfo> mountedVolumes = initialVolumes;
@@ -54,7 +55,7 @@ void TestVolumeMonitor::testMountSignal()
     
     QVERIFY(QMetaObject::invokeMethod(&monitor, "checkVolumes"));
     
-    QCOMPARE(mountSpy.count(), 1);
+    QTRY_COMPARE(mountSpy.count(), 1);
     QCOMPARE(unmountSpy.count(), 0);
     QCOMPARE(mountSpy.at(0).at(0).toString(), QString("/vol2"));
 }
@@ -76,8 +77,9 @@ void TestVolumeMonitor::testUnmountSignal()
         return initialVolumes;
     });
     
-    // Call checkVolumes to set initial state
+    // Call checkVolumes to set initial state and wait
     QVERIFY(QMetaObject::invokeMethod(&monitor, "checkVolumes"));
+    QTest::qWait(50);
     
     // Setup mock for volume unmount (remove vol2)
     QList<VolumeMonitor::VolumeInfo> unmountedVolumes;
@@ -92,8 +94,8 @@ void TestVolumeMonitor::testUnmountSignal()
     
     QVERIFY(QMetaObject::invokeMethod(&monitor, "checkVolumes"));
     
+    QTRY_COMPARE(unmountSpy.count(), 1);
     QCOMPARE(mountSpy.count(), 0);
-    QCOMPARE(unmountSpy.count(), 1);
     QCOMPARE(unmountSpy.at(0).at(0).toString(), QString("/vol2"));
 }
 
@@ -120,6 +122,7 @@ void TestVolumeMonitor::testSdCardPathDetection()
         return volumes;
     });
     QVERIFY(QMetaObject::invokeMethod(&monitor, "checkVolumes"));
+    QTest::qWait(50);
     QVERIFY(monitor.sdCardPath().isEmpty());
     QCOMPARE(sdChangeSpy.count(), 0);
     
@@ -135,8 +138,8 @@ void TestVolumeMonitor::testSdCardPathDetection()
     
     QVERIFY(QMetaObject::invokeMethod(&monitor, "checkVolumes"));
     
-    // Should detect the SD card path
-    QCOMPARE(monitor.sdCardPath(), sdPath);
+    // Should detect the SD card path asynchronously
+    QTRY_COMPARE(monitor.sdCardPath(), sdPath);
     QCOMPARE(sdChangeSpy.count(), 1);
     
     // Unmount the SD card volume
@@ -146,8 +149,8 @@ void TestVolumeMonitor::testSdCardPathDetection()
     
     QVERIFY(QMetaObject::invokeMethod(&monitor, "checkVolumes"));
     
-    // Should clear the SD card path
-    QVERIFY(monitor.sdCardPath().isEmpty());
+    // Should clear the SD card path asynchronously
+    QTRY_VERIFY(monitor.sdCardPath().isEmpty());
     QCOMPARE(sdChangeSpy.count(), 2);
 }
 
@@ -171,6 +174,7 @@ void TestVolumeMonitor::testSdCardIgnoreInvalid()
         return volumes;
     });
     QVERIFY(QMetaObject::invokeMethod(&monitor, "checkVolumes"));
+    QTest::qWait(50);
     QVERIFY(monitor.sdCardPath().isEmpty());
     
     // Volume is not ready
@@ -184,6 +188,7 @@ void TestVolumeMonitor::testSdCardIgnoreInvalid()
         return volumes;
     });
     QVERIFY(QMetaObject::invokeMethod(&monitor, "checkVolumes"));
+    QTest::qWait(50);
     QVERIFY(monitor.sdCardPath().isEmpty());
     
     // Volume is root
@@ -197,6 +202,7 @@ void TestVolumeMonitor::testSdCardIgnoreInvalid()
         return volumes;
     });
     QVERIFY(QMetaObject::invokeMethod(&monitor, "checkVolumes"));
+    QTest::qWait(50);
     QVERIFY(monitor.sdCardPath().isEmpty());
 }
 

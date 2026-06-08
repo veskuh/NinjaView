@@ -5,6 +5,7 @@
 #include <QTimer>
 #include <QStringList>
 #include <functional>
+#include <QFutureWatcher>
 
 class VolumeMonitor : public QObject
 {
@@ -36,7 +37,9 @@ private:
     QStringList m_lastVolumes;
     QString m_sdCardPath;
     std::function<QList<VolumeInfo>()> m_volumesProvider;
+    bool m_isChecking{false};
 
     QList<VolumeInfo> getMountedVolumes() const;
-    void updateSdCardPath();
+    void processVolumes(const QList<VolumeInfo> &volumeInfos);
+    void updateSdCardPath(const QList<VolumeInfo> &volumeInfos);
 };
