@@ -162,7 +162,7 @@ Item {
         property int targetIndex: -1
         property string targetPath: ""
         KaakaoMenuItem {
-            text: qsTr("Reveal in Finder")
+            text: Qt.platform.os === "osx" ? qsTr("Reveal in Finder") : qsTr("Show in File Manager")
             onTriggered: fileActionService.showInFolder(galleryContextMenu.targetPath)
         }
         KaakaoMenuItem {
@@ -206,7 +206,7 @@ Item {
         property int targetIndex: -1
         property string targetPath: ""
         KaakaoMenuItem {
-            text: qsTr("Reveal in Finder")
+            text: Qt.platform.os === "osx" ? qsTr("Reveal in Finder") : qsTr("Show in File Manager")
             onTriggered: fileActionService.showInFolder(folderContextMenu.targetPath)
         }
     }
@@ -383,5 +383,55 @@ Item {
                 }
             }
         }
+    }
+
+    // Empty state overlay — shown when grid has no items
+    Item {
+        anchors {
+            top: filterScopeBar.bottom
+            left: parent.left
+            right: parent.right
+            bottom: parent.bottom
+        }
+        visible: galleryModel.count === 0 && !panel.loading && panel.currentFolderPath !== ""
+
+        Column {
+            anchors.centerIn: parent
+            spacing: 8
+
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: (galleryModel.searchQuery !== "" || galleryModel.filterType !== "All") ? "🔍" : "📂"
+                font.pixelSize: 40
+            }
+            KaakaoLabel {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: (galleryModel.searchQuery !== "" || galleryModel.filterType !== "All")
+                      ? qsTr("No matching images")
+                      : qsTr("No images found")
+                font.pixelSize: 13
+                font.weight: Font.DemiBold
+            }
+            KaakaoLabel {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: (galleryModel.searchQuery !== "" || galleryModel.filterType !== "All")
+                      ? qsTr("Try a different search or filter")
+                      : qsTr("This folder contains no supported images")
+                color: Theme.secondaryText
+                font.pixelSize: 11
+            }
+        }
+    }
+
+    // Scanning status indicator
+    KaakaoActivityOverlay {
+        anchors {
+            top: filterScopeBar.bottom
+            left: parent.left
+            right: parent.right
+            bottom: parent.bottom
+        }
+        active: panel.loading
+        text: qsTr("Scanning directory...")
     }
 }

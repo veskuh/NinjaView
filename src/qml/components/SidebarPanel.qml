@@ -310,6 +310,7 @@ Item {
                 anchors.fill: parent
                 hoverEnabled: true
                 onClicked: panel.triggerFolderDialog()
+                KaakaoToolTip { visible: plusMouse.containsMouse; text: qsTr("Add Folder") }
             }
         }
 
@@ -353,6 +354,7 @@ Item {
                         panel.triggerRemove(sidebar.currentIndex)
                     }
                 }
+                KaakaoToolTip { visible: minusMouse.containsMouse && minusButton.isActive; text: qsTr("Remove Folder") }
             }
         }
 

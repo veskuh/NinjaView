@@ -166,12 +166,54 @@ Item {
     readonly property alias currentZoom: zoomableImage.currentZoom
     readonly property alias fitZoomLevel: zoomableImage.fitZoomLevel
 
+    opacity: 0.0
+    property bool _isFadingOut: false
+    property bool _restoringVisible: false
+
+    NumberAnimation {
+        id: fadeInAnimation
+        target: root
+        property: "opacity"
+        to: 1.0
+        duration: 200
+        easing.type: Easing.OutQuad
+    }
+
+    NumberAnimation {
+        id: fadeOutAnimation
+        target: root
+        property: "opacity"
+        to: 0.0
+        duration: 200
+        easing.type: Easing.OutQuad
+        onFinished: {
+            _isFadingOut = false
+            root.visible = false
+        }
+    }
+
     onVisibleChanged: {
         if (visible) {
+            if (_restoringVisible) {
+                return
+            }
+            if (_isFadingOut) {
+                _isFadingOut = false
+                fadeOutAnimation.stop()
+            }
+            fadeInAnimation.start()
             root.forceActiveFocus()
         } else {
-            root.showInfo = false
-            zoomableImage.reset()
+            if (opacity > 0.0 && !_isFadingOut) {
+                _isFadingOut = true
+                _restoringVisible = true
+                root.visible = true
+                _restoringVisible = false
+                fadeOutAnimation.start()
+            } else if (!_isFadingOut) {
+                root.showInfo = false
+                zoomableImage.reset()
+            }
         }
     }
 
@@ -273,6 +315,35 @@ Item {
             width: Math.min(root.width - 80, 400)
             horizontalAlignment: Text.AlignHCenter
         }
+    }
+
+    // Image counter — "3 / 42" shown at the bottom center
+    readonly property int imagePosition: {
+        if (root.currentIndex < 0 || root.modelCount === 0) return 0
+        let pos = 0
+        for (let i = 0; i <= root.currentIndex && i < root.modelCount; i++) {
+            if (!root.isFolder(i)) pos++
+        }
+        return pos
+    }
+    readonly property int imageTotal: {
+        let total = 0
+        for (let i = 0; i < root.modelCount; i++) {
+            if (!root.isFolder(i)) total++
+        }
+        return total
+    }
+
+    KaakaoLabel {
+        anchors {
+            horizontalCenter: parent.horizontalCenter
+            bottom: parent.bottom
+            bottomMargin: 16
+        }
+        text: root.imagePosition + " / " + root.imageTotal
+        color: "#AAFFFFFF"
+        font.pixelSize: 12
+        visible: root.imageTotal > 1
     }
 
     Keys.onPressed: (event) => {

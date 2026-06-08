@@ -102,6 +102,7 @@ KaakaoToolBar {
                 return toolbar.isJpegFile(idx)
             }
             onClicked: toolbar.rotateImage(270)
+            KaakaoToolTip { visible: parent.hovered; text: qsTr("Rotate Left (JPEG only)") }
         }
 
         KaakaoToolButton {
@@ -112,13 +113,15 @@ KaakaoToolBar {
                 return toolbar.isJpegFile(idx)
             }
             onClicked: toolbar.rotateImage(90)
+            KaakaoToolTip { visible: parent.hovered; text: qsTr("Rotate Right (JPEG only)") }
         }
 
         KaakaoToolButton {
-            iconEmoji: "🔍"
+            iconEmoji: "ℹ"
             text: toolbar.showMainInfo ? qsTr("Hide Info") : qsTr("Show Info")
             enabled: toolbar.galleryPanelCurrentIndex >= 0 && galleryModel.count > 0
             onClicked: toolbar.toggleShowMainInfo()
+            KaakaoToolTip { visible: parent.hovered; text: qsTr("Show or hide the image info panel") }
         }
 
         KaakaoSearchField {

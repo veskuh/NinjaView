@@ -40,7 +40,7 @@ TestCase {
         compare(cursorMouseArea.cursorShape, Qt.BlankCursor, "Cursor should be blank when overlay is visible")
         
         overlay.visible = false
-        verify(!overlay.visible, "Overlay should be hidden")
+        tryVerify(function() { return !overlay.visible }, 1000, "Overlay should be hidden")
         compare(cursorMouseArea.cursorShape, Qt.ArrowCursor, "Cursor should be arrow when overlay is hidden")
     }
 
@@ -64,7 +64,7 @@ TestCase {
         compare(overlay.currentIndex, 1, "Index should decrement on Left arrow")
         
         keyClick(Qt.Key_Escape)
-        verify(!overlay.visible, "Overlay should hide on Escape")
+        tryVerify(function() { return !overlay.visible }, 1000, "Overlay should hide on Escape")
     }
 
     function test_zoom() {

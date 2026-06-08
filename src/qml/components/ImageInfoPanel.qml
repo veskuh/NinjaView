@@ -165,6 +165,7 @@ Item {
                         { label: "Size", value: panel.exifData.FileSize },
                         { label: "Exposure", value: panel.exifData.Exposure },
                         { label: "Aperture", value: panel.exifData.Aperture },
+                        { label: "Focal Length", value: panel.exifData.FocalLength },
                         { label: "ISO", value: panel.exifData.ISO },
                         { label: "Date", value: panel.exifData.DateTime }
                     ]
