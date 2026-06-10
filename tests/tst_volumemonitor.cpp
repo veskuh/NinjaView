@@ -25,6 +25,7 @@ void TestVolumeMonitor::testConstruction()
 void TestVolumeMonitor::testMountSignal()
 {
     VolumeMonitor monitor;
+    monitor.stopMonitoring();
     
     // Set initial volumes
     QList<VolumeMonitor::VolumeInfo> initialVolumes;
@@ -38,7 +39,7 @@ void TestVolumeMonitor::testMountSignal()
     
     // Call checkVolumes to set initial state and wait for it
     QVERIFY(QMetaObject::invokeMethod(&monitor, "checkVolumes"));
-    QTest::qWait(50);
+    monitor.waitForCheckFinished();
     
     // Setup mock for new volume mount
     QList<VolumeMonitor::VolumeInfo> mountedVolumes = initialVolumes;
@@ -63,6 +64,7 @@ void TestVolumeMonitor::testMountSignal()
 void TestVolumeMonitor::testUnmountSignal()
 {
     VolumeMonitor monitor;
+    monitor.stopMonitoring();
     
     // Set initial volumes
     QList<VolumeMonitor::VolumeInfo> initialVolumes;
@@ -79,7 +81,7 @@ void TestVolumeMonitor::testUnmountSignal()
     
     // Call checkVolumes to set initial state and wait
     QVERIFY(QMetaObject::invokeMethod(&monitor, "checkVolumes"));
-    QTest::qWait(50);
+    monitor.waitForCheckFinished();
     
     // Setup mock for volume unmount (remove vol2)
     QList<VolumeMonitor::VolumeInfo> unmountedVolumes;
@@ -110,6 +112,7 @@ void TestVolumeMonitor::testSdCardPathDetection()
     QVERIFY(dir.mkpath("DCIM"));
     
     VolumeMonitor monitor;
+    monitor.stopMonitoring();
     QSignalSpy sdChangeSpy(&monitor, &VolumeMonitor::sdCardPathChanged);
     
     // Start with empty SD card path
@@ -122,7 +125,7 @@ void TestVolumeMonitor::testSdCardPathDetection()
         return volumes;
     });
     QVERIFY(QMetaObject::invokeMethod(&monitor, "checkVolumes"));
-    QTest::qWait(50);
+    monitor.waitForCheckFinished();
     QVERIFY(monitor.sdCardPath().isEmpty());
     QCOMPARE(sdChangeSpy.count(), 0);
     
@@ -162,6 +165,7 @@ void TestVolumeMonitor::testSdCardIgnoreInvalid()
     QDir(mockPath).mkpath("DCIM");
     
     VolumeMonitor monitor;
+    monitor.stopMonitoring();
     
     // Volume is invalid
     QList<VolumeMonitor::VolumeInfo> volumes;
@@ -174,7 +178,7 @@ void TestVolumeMonitor::testSdCardIgnoreInvalid()
         return volumes;
     });
     QVERIFY(QMetaObject::invokeMethod(&monitor, "checkVolumes"));
-    QTest::qWait(50);
+    monitor.waitForCheckFinished();
     QVERIFY(monitor.sdCardPath().isEmpty());
     
     // Volume is not ready
@@ -188,7 +192,7 @@ void TestVolumeMonitor::testSdCardIgnoreInvalid()
         return volumes;
     });
     QVERIFY(QMetaObject::invokeMethod(&monitor, "checkVolumes"));
-    QTest::qWait(50);
+    monitor.waitForCheckFinished();
     QVERIFY(monitor.sdCardPath().isEmpty());
     
     // Volume is root
@@ -202,7 +206,7 @@ void TestVolumeMonitor::testSdCardIgnoreInvalid()
         return volumes;
     });
     QVERIFY(QMetaObject::invokeMethod(&monitor, "checkVolumes"));
-    QTest::qWait(50);
+    monitor.waitForCheckFinished();
     QVERIFY(monitor.sdCardPath().isEmpty());
 }
 

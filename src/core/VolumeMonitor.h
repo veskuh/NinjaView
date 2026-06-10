@@ -6,6 +6,7 @@
 #include <QStringList>
 #include <functional>
 #include <QFutureWatcher>
+#include <QFuture>
 
 class VolumeMonitor : public QObject
 {
@@ -21,9 +22,14 @@ public:
     };
 
     explicit VolumeMonitor(QObject *parent = nullptr);
+    ~VolumeMonitor();
+
     QString sdCardPath() const { return m_sdCardPath; }
 
     void setVolumesProvider(std::function<QList<VolumeInfo>()> provider) { m_volumesProvider = provider; }
+
+    void stopMonitoring();
+    void waitForCheckFinished();
 
 signals:
     void volumeMounted(const QString &path);
@@ -39,7 +45,12 @@ private:
     std::function<QList<VolumeInfo>()> m_volumesProvider;
     bool m_isChecking{false};
 
+    QTimer *m_timer{nullptr};
+    QTimer *m_singleShotTimer{nullptr};
+    QFuture<QList<VolumeInfo>> m_activeFuture;
+
     QList<VolumeInfo> getMountedVolumes() const;
     void processVolumes(const QList<VolumeInfo> &volumeInfos);
     void updateSdCardPath(const QList<VolumeInfo> &volumeInfos);
 };
+

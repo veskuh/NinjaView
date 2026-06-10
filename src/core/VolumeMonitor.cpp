@@ -2,16 +2,46 @@
 #include <QDebug>
 #include <QDir>
 #include <QtConcurrent>
+#include <QCoreApplication>
+#include <QEventLoop>
 
 VolumeMonitor::VolumeMonitor(QObject *parent)
     : QObject(parent)
 {
     // Start initial scan asynchronously immediately to avoid blocking main thread at startup
-    QTimer::singleShot(0, this, &VolumeMonitor::checkVolumes);
+    m_singleShotTimer = new QTimer(this);
+    m_singleShotTimer->setSingleShot(true);
+    connect(m_singleShotTimer, &QTimer::timeout, this, &VolumeMonitor::checkVolumes);
+    m_singleShotTimer->start(0);
 
-    QTimer *timer = new QTimer(this);
-    connect(timer, &QTimer::timeout, this, &VolumeMonitor::checkVolumes);
-    timer->start(3000); // Check every 3 seconds for better responsiveness
+    m_timer = new QTimer(this);
+    connect(m_timer, &QTimer::timeout, this, &VolumeMonitor::checkVolumes);
+    m_timer->start(3000); // Check every 3 seconds for better responsiveness
+}
+
+VolumeMonitor::~VolumeMonitor()
+{
+    stopMonitoring();
+    if (m_activeFuture.isRunning()) {
+        m_activeFuture.waitForFinished();
+    }
+}
+
+void VolumeMonitor::stopMonitoring()
+{
+    if (m_singleShotTimer) {
+        m_singleShotTimer->stop();
+    }
+    if (m_timer) {
+        m_timer->stop();
+    }
+}
+
+void VolumeMonitor::waitForCheckFinished()
+{
+    while (m_isChecking) {
+        QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents, 10);
+    }
 }
 
 void VolumeMonitor::checkVolumes()
@@ -28,10 +58,10 @@ void VolumeMonitor::checkVolumes()
         m_isChecking = false;
     });
 
-    QFuture<QList<VolumeInfo>> future = QtConcurrent::run([this]() {
+    m_activeFuture = QtConcurrent::run([this]() {
         return getMountedVolumes();
     });
-    watcher->setFuture(future);
+    watcher->setFuture(m_activeFuture);
 }
 
 void VolumeMonitor::processVolumes(const QList<VolumeInfo> &volumeInfos)
