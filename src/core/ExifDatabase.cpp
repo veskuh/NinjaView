@@ -23,10 +23,12 @@ ExifDatabase::ExifDatabase(QObject *parent)
 
 ExifDatabase::~ExifDatabase()
 {
-    QString connName = QString("exif_db_conn_%1").arg(quintptr(QThread::currentThreadId()));
-    if (QSqlDatabase::contains(connName)) {
-        QSqlDatabase::database(connName).close();
-        QSqlDatabase::removeDatabase(connName);
+    // Close and remove all database connections created by this instance
+    const QStringList connections = QSqlDatabase::connectionNames();
+    for (const QString &connName : connections) {
+        if (connName.startsWith("exif_db_conn_")) {
+            QSqlDatabase::removeDatabase(connName);
+        }
     }
 }
 

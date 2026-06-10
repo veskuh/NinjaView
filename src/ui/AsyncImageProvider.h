@@ -37,6 +37,7 @@ class AsyncImageProvider : public QQuickAsyncImageProvider
 
 public:
     AsyncImageProvider(Logger *logger = nullptr);
+    ~AsyncImageProvider() override;
     QQuickImageResponse *requestImageResponse(const QString &id, const QSize &requestedSize) override;
 
     void clearCache();
@@ -63,6 +64,7 @@ private:
     QString m_diskCachePath;
     QHash<QString, QStringList> m_cachedKeys;
     QHash<QString, int> m_inMemoryRotations;
+    QThreadPool m_threadPool;
     void ensureCacheDir();
     void clearDiskCacheForFile(const QString &cleanPath);
 };

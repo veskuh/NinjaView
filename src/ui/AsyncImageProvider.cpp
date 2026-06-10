@@ -143,6 +143,13 @@ AsyncImageProvider::AsyncImageProvider(Logger *logger)
 {
     m_diskCachePath = QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + "/thumbnails";
     ensureCacheDir();
+    // Configure thread pool to run up to 4 threads concurrently for image rendering
+    m_threadPool.setMaxThreadCount(4);
+}
+
+AsyncImageProvider::~AsyncImageProvider()
+{
+    m_threadPool.waitForDone();
 }
 
 qint64 AsyncImageProvider::maxMemoryCacheSize() const
@@ -165,7 +172,7 @@ void AsyncImageProvider::setMaxMemoryCacheSize(qint64 size)
 QQuickImageResponse *AsyncImageProvider::requestImageResponse(const QString &id, const QSize &requestedSize)
 {
     AsyncImageResponse *response = new AsyncImageResponse(id, requestedSize, this, m_logger);
-    QThreadPool::globalInstance()->start(response);
+    m_threadPool.start(response);
     return response;
 }
 

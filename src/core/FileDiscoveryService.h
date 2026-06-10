@@ -4,6 +4,7 @@
 #include <QStringList>
 #include <atomic>
 #include <QMutex>
+#include <QFuture>
 
 class ExifDatabase;
 
@@ -14,6 +15,7 @@ class FileDiscoveryService : public QObject
 
 public:
     explicit FileDiscoveryService(QObject *parent = nullptr);
+    ~FileDiscoveryService();
 
     void setDatabase(ExifDatabase *db);
 
@@ -33,4 +35,5 @@ private:
     quint64 m_currentScanId{0};
     mutable QMutex m_scanMutex;
     ExifDatabase *m_db{nullptr};
+    QFuture<void> m_activeFuture;
 };

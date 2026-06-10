@@ -12,6 +12,13 @@ FileDiscoveryService::FileDiscoveryService(QObject *parent)
 {
 }
 
+FileDiscoveryService::~FileDiscoveryService()
+{
+    if (m_activeFuture.isRunning()) {
+        m_activeFuture.waitForFinished();
+    }
+}
+
 void FileDiscoveryService::setDatabase(ExifDatabase *db)
 {
     m_db = db;
@@ -36,7 +43,7 @@ void FileDiscoveryService::scanDirectory(const QString &path, bool recursive)
         emit isScanningChanged();
     }
 
-    (void)QtConcurrent::run([this, localPath, recursive, scanId]() {
+    m_activeFuture = QtConcurrent::run([this, localPath, recursive, scanId]() {
         doScan(localPath, recursive, scanId);
     });
 }
