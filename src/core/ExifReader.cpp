@@ -21,6 +21,57 @@ static QString cleanExifString(const std::string &s)
     return cleaned.trimmed();
 }
 
+static qint64 readMp4Duration(const QString &filePath)
+{
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly)) return 0;
+    
+    // We search the first 128KB of the file.
+    QByteArray data = file.read(128 * 1024);
+    int idx = data.indexOf("mvhd");
+    if (idx == -1) {
+        // Try reading the last 128KB in case moov is at the end (common in some recorders).
+        if (file.size() > 128 * 1024) {
+            if (file.seek(file.size() - 128 * 1024)) {
+                data = file.readAll();
+                idx = data.indexOf("mvhd");
+            }
+        }
+    }
+    
+    if (idx != -1 && idx + 32 <= data.size()) {
+        int offset = idx + 4; // points to version
+        quint8 version = (quint8)data.at(offset);
+        
+        quint32 timescale = 0;
+        quint64 duration = 0;
+        
+        if (version == 0) {
+            if (offset + 20 <= data.size()) {
+                const uchar* p = (const uchar*)data.constData() + offset + 12;
+                timescale = ((quint32)p[0] << 24) | ((quint32)p[1] << 16) | ((quint32)p[2] << 8) | p[3];
+                
+                p = (const uchar*)data.constData() + offset + 16;
+                duration = ((quint32)p[0] << 24) | ((quint32)p[1] << 16) | ((quint32)p[2] << 8) | p[3];
+            }
+        } else if (version == 1) {
+            if (offset + 32 <= data.size()) {
+                const uchar* p = (const uchar*)data.constData() + offset + 20;
+                timescale = ((quint32)p[0] << 24) | ((quint32)p[1] << 16) | ((quint32)p[2] << 8) | p[3];
+                
+                p = (const uchar*)data.constData() + offset + 24;
+                duration = ((quint64)p[0] << 56) | ((quint64)p[1] << 48) | ((quint64)p[2] << 40) | ((quint64)p[3] << 32)
+                         | ((quint64)p[4] << 24) | ((quint64)p[5] << 16) | ((quint64)p[6] << 8) | p[7];
+            }
+        }
+        
+        if (timescale > 0 && duration > 0) {
+            return (duration * 1000) / timescale; // duration in milliseconds
+        }
+    }
+    return 0;
+}
+
 ExifReader::ExifReader(QObject *parent)
     : QObject(parent)
 {
@@ -83,6 +134,17 @@ QVariantMap ExifReader::getExifData(const QString &filePath)
         }
         data["FileSize"] = sizeStr;
         data["DateTime"] = fileInfo.lastModified().toString("yyyy:MM:dd HH:mm:ss");
+        
+        // Extract and format video duration from mp4 header
+        qint64 durationMs = readMp4Duration(filePath);
+        if (durationMs > 0) {
+            qint64 totalSecs = durationMs / 1000;
+            qint64 mins = totalSecs / 60;
+            qint64 secs = totalSecs % 60;
+            data["Exposure"] = QString("%1:%2").arg(mins).arg(secs, 2, 10, QChar('0'));
+        } else {
+            data["Exposure"] = "";
+        }
         
         if (m_db) {
             m_db->saveExifData(filePath, fileInfo.size(), fileInfo.lastModified(), data);

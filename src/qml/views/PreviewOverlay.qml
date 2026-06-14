@@ -362,7 +362,7 @@ Item {
             id: controlsPanel
             anchors.bottom: parent.bottom
             anchors.horizontalCenter: parent.horizontalCenter
-            anchors.bottomMargin: 32
+            anchors.bottomMargin: mouseTracker.mouseActive ? 32 : 16
             width: Math.min(parent.width - 64, 480)
             height: 48
             radius: 24
@@ -372,6 +372,7 @@ Item {
             
             opacity: mouseTracker.mouseActive ? 1.0 : 0.0
             Behavior on opacity { NumberAnimation { duration: 250 } }
+            Behavior on anchors.bottomMargin { NumberAnimation { duration: 250; easing.type: Easing.OutQuad } }
             
             RowLayout {
                 anchors.fill: parent
@@ -386,12 +387,33 @@ Item {
                     radius: 14
                     color: playPauseMouse.pressed ? "#30FFFFFF" : (playPauseMouse.containsMouse ? "#15FFFFFF" : "transparent")
                     
+                    // Hover scale effect
+                    scale: playPauseMouse.containsMouse ? 1.1 : 1.0
+                    Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutQuad } }
+                    
+                    // Smooth Play morphing icon
                     Text {
                         anchors.centerIn: parent
-                        text: mediaPlayer.playbackState === MediaPlayer.PlayingState ? "⏸" : "▶"
+                        text: "▶"
                         color: "white"
                         font.pixelSize: 12
-                        anchors.horizontalCenterOffset: (mediaPlayer.playbackState === MediaPlayer.PlayingState) ? 0 : 1
+                        anchors.horizontalCenterOffset: 1
+                        opacity: mediaPlayer.playbackState !== MediaPlayer.PlayingState ? 1.0 : 0.0
+                        scale: mediaPlayer.playbackState !== MediaPlayer.PlayingState ? 1.0 : 0.5
+                        Behavior on opacity { NumberAnimation { duration: 150 } }
+                        Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutQuad } }
+                    }
+                    
+                    // Smooth Pause morphing icon
+                    Text {
+                        anchors.centerIn: parent
+                        text: "⏸"
+                        color: "white"
+                        font.pixelSize: 12
+                        opacity: mediaPlayer.playbackState === MediaPlayer.PlayingState ? 1.0 : 0.0
+                        scale: mediaPlayer.playbackState === MediaPlayer.PlayingState ? 1.0 : 0.5
+                        Behavior on opacity { NumberAnimation { duration: 150 } }
+                        Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutQuad } }
                     }
                     
                     MouseArea {

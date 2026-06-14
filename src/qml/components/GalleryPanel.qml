@@ -371,22 +371,48 @@ Item {
                     }
 
                     Rectangle {
+                        id: videoBadge
                         anchors.bottom: parent.bottom
                         anchors.right: parent.right
                         anchors.margins: 6
-                        width: 20
-                        height: 20
-                        radius: 10
-                        color: "#B0000000"
-                        border.color: "#30FFFFFF"
+                        height: 18
+                        radius: 9
+                        color: "#CC1C1C1C"
+                        border.color: "#20FFFFFF"
                         visible: !model.isFolder && model.isVideo
                         
-                        Text {
+                        // Query EXIF database cache for duration
+                        readonly property var exif: visible && typeof exifDatabase !== "undefined" && exifDatabase ? exifDatabase.getExifData(model.rawPath) : null
+                        readonly property string durationText: (exif && exif.Exposure) ? exif.Exposure : ""
+                        readonly property string formatText: {
+                            if (model.isFolder) return ""
+                            let parts = model.rawPath.split('.')
+                            return parts.length > 1 ? parts.pop().toUpperCase() : "VIDEO"
+                        }
+                        readonly property string displayLabel: durationText !== "" ? durationText : formatText
+
+                        // Make width dynamic based on row content
+                        width: badgeRow.implicitWidth + 12
+
+                        Row {
+                            id: badgeRow
                             anchors.centerIn: parent
-                            text: "▶"
-                            color: "white"
-                            font.pixelSize: 8
-                            anchors.horizontalCenterOffset: 1
+                            spacing: 3
+                            
+                            Text {
+                                text: "▶"
+                                color: "white"
+                                font.pixelSize: 7
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+                            
+                            Text {
+                                text: videoBadge.displayLabel
+                                color: "white"
+                                font.pixelSize: 9
+                                font.bold: true
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
                         }
                     }
                 }
