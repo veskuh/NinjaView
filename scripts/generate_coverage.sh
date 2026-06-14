@@ -167,9 +167,9 @@ lcov --list "$COVERAGE_SRC" --ignore-errors inconsistent,format 2>/dev/null \
         pct=$(echo "$rest_clean" | awk '{print $1}' | tr -d '%')
         fname=$(echo "$filename" | xargs)  # trim whitespace
 
-        # Skip autogen files
+        # Skip autogen files and native platform wrappers
         case "$fname" in
-            *_autogen*|*_init.*|*_qmltyperegistrations*|*.moc) continue ;;
+            *_autogen*|*_init.*|*_qmltyperegistrations*|*.moc|*.mm) continue ;;
         esac
 
         # Extract line count

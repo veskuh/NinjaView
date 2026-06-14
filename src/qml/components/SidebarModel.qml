@@ -58,7 +58,8 @@ ListModel {
 
     function loadSidebar() {
         model.clear()
-        model.append({ name: qsTr("Pictures"), icon: "🖼️", category: qsTr("Library") })
+        model.append({ name: qsTr("Pictures"), icon: "🖼️", category: qsTr("Library"), path: "smart://pictures" })
+        model.append({ name: qsTr("Videos"), icon: "🎬", category: qsTr("Library"), path: "smart://videos" })
         model.append({ name: qsTr("Favorites"), icon: "★", iconColor: "#FFC107", category: qsTr("Library"), path: "smart://favorites" })
         model.append({ name: qsTr("SD Card"), icon: "💾", category: qsTr("Devices") })
         

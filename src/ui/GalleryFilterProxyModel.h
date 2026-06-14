@@ -39,6 +39,7 @@ public:
     Q_INVOKABLE QString getRawPath(int row) const;
     Q_INVOKABLE QString getFileName(int row) const;
     Q_INVOKABLE bool isFolder(int row) const;
+    Q_INVOKABLE bool isVideo(int row) const;
 
 public Q_SLOTS:
     void invalidateFilter();

@@ -12,7 +12,7 @@ Item {
 
     required property var settings
 
-    signal directorySelected(string name, string path, bool isPictures, bool isSdCard)
+    signal directorySelected(string name, string path, bool isPictures, bool isVideos, bool isSdCard)
 
     property bool blockNavigation: false
 
@@ -267,9 +267,10 @@ Item {
             let name = item.name
             let path = item.path || ""
             let isPictures = (name === qsTr("Pictures") || name === "Pictures")
+            let isVideos = (name === qsTr("Videos") || name === "Videos")
             let isSdCard = (name === qsTr("SD Card") || name === "SD Card")
             
-            panel.directorySelected(name, path, isPictures, isSdCard)
+            panel.directorySelected(name, path, isPictures, isVideos, isSdCard)
         }
     }
 

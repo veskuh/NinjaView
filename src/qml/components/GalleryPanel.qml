@@ -18,9 +18,7 @@ Item {
 
     // Real path resolver
     readonly property string realFolderPath: {
-        if (currentFolderPath === "pictures_library") {
-            return StandardPaths.writableLocation(StandardPaths.PicturesLocation);
-        } else if (currentFolderPath === "sd_card_device") {
+        if (currentFolderPath === "sd_card_device") {
             return volumeMonitor.sdCardPath ? (volumeMonitor.sdCardPath + "/DCIM") : "";
         } else {
             return currentFolderPath;
@@ -239,7 +237,7 @@ Item {
             } else if (!isNaN(parseInt(name)) && name.length === 4) {
                 galleryModel.filterType = name
                 galleryModel.cameraFilter = ""
-            } else if (name === "JPG" || name === "PNG" || name === "WEBP" || name === "BMP") {
+            } else if (name === "JPG" || name === "PNG" || name === "WEBP" || name === "BMP" || name === "MP4" || name === "MOV") {
                 galleryModel.filterType = name
                 galleryModel.cameraFilter = ""
             } else {
@@ -369,6 +367,26 @@ Item {
                             if (status === Image.Error && !model.isFolder) {
                                 console.error("Failed to load thumbnail for:", model.rawPath)
                             }
+                        }
+                    }
+
+                    Rectangle {
+                        anchors.bottom: parent.bottom
+                        anchors.right: parent.right
+                        anchors.margins: 6
+                        width: 20
+                        height: 20
+                        radius: 10
+                        color: "#B0000000"
+                        border.color: "#30FFFFFF"
+                        visible: !model.isFolder && model.isVideo
+                        
+                        Text {
+                            anchors.centerIn: parent
+                            text: "▶"
+                            color: "white"
+                            font.pixelSize: 8
+                            anchors.horizontalCenterOffset: 1
                         }
                     }
                 }

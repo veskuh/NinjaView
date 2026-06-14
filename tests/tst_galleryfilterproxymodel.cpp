@@ -12,6 +12,7 @@ class TestGalleryFilterProxyModel : public QObject
 private slots:
     void initTestCase();
     void testFiltering();
+    void testVideoFiltering();
 };
 
 void TestGalleryFilterProxyModel::initTestCase()
@@ -235,6 +236,51 @@ void TestGalleryFilterProxyModel::testFiltering()
     proxyModel.setSearchQuery("");
     proxyModel.setFilterType("All");
     QCOMPARE(proxyModel.rowCount(), 4);
+}
+
+void TestGalleryFilterProxyModel::testVideoFiltering()
+{
+    ExifDatabase db;
+    QVERIFY(db.init());
+    QVERIFY(db.clear());
+
+    GalleryListModel sourceModel;
+    GalleryFilterProxyModel proxyModel;
+    proxyModel.setSourceModel(&sourceModel);
+    proxyModel.setDatabase(&db);
+
+    QString folderPath = "/tmp/test_video_dir";
+    QString fileMp4 = "/tmp/test_video_dir/video.mp4";
+    QString fileMov = "/tmp/test_video_dir/clip.mov";
+    QString fileJpg = "/tmp/test_video_dir/photo.jpg";
+
+    sourceModel.addFolders({folderPath});
+    sourceModel.addImages({fileMp4, fileMov, fileJpg});
+
+    // Total rowCount should be 4 (1 folder + 3 files)
+    QCOMPARE(proxyModel.rowCount(), 4);
+
+    // Filter by MP4
+    proxyModel.setFilterType("MP4");
+    // Should accept folder and video.mp4 (count = 2)
+    QCOMPARE(proxyModel.rowCount(), 2);
+    QCOMPARE(proxyModel.getRawPath(0), folderPath);
+    QCOMPARE(proxyModel.getRawPath(1), fileMp4);
+    QVERIFY(proxyModel.isVideo(1));
+    QVERIFY(!proxyModel.isVideo(0));
+
+    // Filter by MOV
+    proxyModel.setFilterType("MOV");
+    // Should accept folder and clip.mov (count = 2)
+    QCOMPARE(proxyModel.rowCount(), 2);
+    QCOMPARE(proxyModel.getRawPath(1), fileMov);
+    QVERIFY(proxyModel.isVideo(1));
+
+    // Filter by JPG
+    proxyModel.setFilterType("JPG");
+    QCOMPARE(proxyModel.rowCount(), 2);
+    QCOMPARE(proxyModel.getRawPath(1), fileJpg);
+    QVERIFY(!proxyModel.isVideo(1));
 }
 
 QTEST_MAIN(TestGalleryFilterProxyModel)

@@ -6,6 +6,7 @@
 #include <QtConcurrent>
 #include <QMutexLocker>
 #include <QFileInfo>
+#include <QStandardPaths>
 
 FileDiscoveryService::FileDiscoveryService(QObject *parent)
     : QObject(parent)
@@ -53,20 +54,59 @@ void FileDiscoveryService::doScan(const QString &path, bool recursive, quint64 s
     QStringList paths;
     QStringList folderPaths;
 
+    auto scanSingleDir = [&](const QString &dirPath) {
+        QDir dir(dirPath);
+        if (!dir.exists()) return;
+
+        QStringList filters;
+        filters << "*.jpg" << "*.jpeg" << "*.png" << "*.bmp" << "*.webp" << "*.mp4" << "*.mov"
+                << "*.JPG" << "*.JPEG" << "*.PNG" << "*.BMP" << "*.WEBP" << "*.MP4" << "*.MOV";
+
+        if (recursive) {
+            QDirIterator it(dirPath, filters, QDir::Files | QDir::NoDotAndDotDot, QDirIterator::Subdirectories);
+            while (it.hasNext()) {
+                paths << it.next();
+            }
+        } else {
+            // Find subdirectories
+            QFileInfoList dirList = dir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
+            for (const QFileInfo &dirInfo : dirList) {
+                folderPaths << dirInfo.absoluteFilePath();
+            }
+
+            // Find images and videos
+            dir.setNameFilters(filters);
+            dir.setFilter(QDir::Files | QDir::NoDotAndDotDot);
+            QFileInfoList list = dir.entryInfoList();
+            for (const QFileInfo &fileInfo : list) {
+                paths << fileInfo.absoluteFilePath();
+            }
+        }
+    };
+
     if (path.startsWith("smart://")) {
         qDebug() << "Scanning smart folder:" << path;
-        QStringList allPaths;
-        if (path == "smart://favorites") {
-            allPaths = m_db ? m_db->getFavorites() : QStringList();
-        } else if (path.startsWith("smart://tag/")) {
-            QString tag = path.mid(12); // length of "smart://tag/" is 12
-            allPaths = m_db ? m_db->getImagesWithTag(tag) : QStringList();
-        }
+        if (path == "smart://media") {
+            scanSingleDir(QStandardPaths::writableLocation(QStandardPaths::PicturesLocation));
+            scanSingleDir(QStandardPaths::writableLocation(QStandardPaths::MoviesLocation));
+        } else if (path == "smart://pictures") {
+            scanSingleDir(QStandardPaths::writableLocation(QStandardPaths::PicturesLocation));
+        } else if (path == "smart://videos") {
+            scanSingleDir(QStandardPaths::writableLocation(QStandardPaths::MoviesLocation));
+        } else {
+            QStringList allPaths;
+            if (path == "smart://favorites") {
+                allPaths = m_db ? m_db->getFavorites() : QStringList();
+            } else if (path.startsWith("smart://tag/")) {
+                QString tag = path.mid(12); // length of "smart://tag/" is 12
+                allPaths = m_db ? m_db->getImagesWithTag(tag) : QStringList();
+            }
 
-        // Verify files exist on disk
-        for (const QString &filePath : allPaths) {
-            if (QFileInfo::exists(filePath)) {
-                paths << filePath;
+            // Verify files exist on disk
+            for (const QString &filePath : allPaths) {
+                if (QFileInfo::exists(filePath)) {
+                    paths << filePath;
+                }
             }
         }
     } else {
@@ -86,30 +126,7 @@ void FileDiscoveryService::doScan(const QString &path, bool recursive, quint64 s
             return;
         }
 
-        QStringList filters;
-        filters << "*.jpg" << "*.jpeg" << "*.png" << "*.bmp" << "*.webp"
-                << "*.JPG" << "*.JPEG" << "*.PNG" << "*.BMP" << "*.WEBP";
-
-        if (recursive) {
-            QDirIterator it(path, filters, QDir::Files | QDir::NoDotAndDotDot, QDirIterator::Subdirectories);
-            while (it.hasNext()) {
-                paths << it.next();
-            }
-        } else {
-            // Find subdirectories
-            QFileInfoList dirList = dir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
-            for (const QFileInfo &dirInfo : dirList) {
-                folderPaths << dirInfo.absoluteFilePath();
-            }
-
-            // Find images
-            dir.setNameFilters(filters);
-            dir.setFilter(QDir::Files | QDir::NoDotAndDotDot);
-            QFileInfoList list = dir.entryInfoList();
-            for (const QFileInfo &fileInfo : list) {
-                paths << fileInfo.absoluteFilePath();
-            }
-        }
+        scanSingleDir(path);
     }
 
     qDebug() << "Found" << folderPaths.count() << "folders and" << paths.count() << "images in" << path;

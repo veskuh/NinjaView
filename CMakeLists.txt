@@ -47,7 +47,7 @@ set(CMAKE_AUTOUIC ON)
 # Standard QML output directory for easier discovery in build tree
 set(QT_QML_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/qml)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2 Core5Compat ShaderTools Concurrent Test QuickTest QuickDialogs2 Sql)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2 Core5Compat ShaderTools Concurrent Test QuickTest QuickDialogs2 Sql Multimedia)
 
 # Workaround for official Qt 6.8.3 on modern macOS SDKs complaining about missing AGL framework
 if(APPLE AND TARGET WrapOpenGL::WrapOpenGL)
@@ -113,14 +113,13 @@ if(UNIX AND NOT APPLE)
     set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/LICENSE")
     # Debian specific options
     set(CPACK_DEBIAN_PACKAGE_SECTION "graphics")
-    set(CPACK_DEBIAN_PACKAGE_DEPENDS "qml6-module-qtquick, qml6-module-qtquick-controls, qml6-module-qtquick-layouts, qml6-module-qtquick-dialogs, qml6-module-qt5compat-graphicaleffects")
+    set(CPACK_DEBIAN_PACKAGE_DEPENDS "qml6-module-qtquick, qml6-module-qtquick-controls, qml6-module-qtquick-layouts, qml6-module-qtquick-dialogs, qml6-module-qt5compat-graphicaleffects, qml6-module-qtmultimedia")
     
     # RPM specific options
     set(CPACK_RPM_PACKAGE_LICENSE "BSD-3-Clause")
     set(CPACK_RPM_PACKAGE_GROUP "Applications/Multimedia")
-    set(CPACK_RPM_PACKAGE_REQUIRES "qt6-qtdeclarative, qt6-qt5compat")
+    set(CPACK_RPM_PACKAGE_REQUIRES "qt6-qtdeclarative, qt6-qt5compat, qt6-qtmultimedia")
     set(CPACK_RPM_SPEC_MORE_DEFINE "%global __requires_exclude (Qt_.*_PRIVATE_API)")
 
     include(CPack)
 endif()
-

@@ -4,6 +4,7 @@
 #include <QQmlEngine>
 #include <QQmlContext>
 #include <QLibraryInfo>
+#include <QThreadPool>
 #include "AsyncImageProvider.h"
 #include "FileDiscoveryService.h"
 #include "GalleryListModel.h"
@@ -27,45 +28,60 @@ class TestSetup : public QObject
 public slots:
     void qmlEngineAvailable(QQmlEngine *engine)
     {
-        // Real or mock objects for tests
-        // Some tests might prefer to use their own mocks via 'id' if scope allows, 
-        // but context properties are more robust for nested components.
+        static Logger* logger = new Logger();
+        static ExifDatabase* exifDb = new ExifDatabase();
+        static bool dbInit = false;
+        if (!dbInit) {
+            exifDb->init();
+            dbInit = true;
+        }
+
+        static GalleryListModel* rawGalleryModel = new GalleryListModel();
+        static GalleryFilterProxyModel* galleryModel = new GalleryFilterProxyModel();
+        static bool modelsConnected = false;
+        if (!modelsConnected) {
+            galleryModel->setSourceModel(rawGalleryModel);
+            galleryModel->setDatabase(exifDb);
+            modelsConnected = true;
+        }
+
+        static FileDiscoveryService* discoveryService = new FileDiscoveryService();
+        static bool discInit = false;
+        if (!discInit) {
+            discoveryService->setDatabase(exifDb);
+            discInit = true;
+        }
+
+        static VolumeMonitor* volumeMonitor = new VolumeMonitor();
+        static ExifReader* exifReader = new ExifReader();
+        static bool readerInit = false;
+        if (!readerInit) {
+            exifReader->setDatabase(exifDb);
+            readerInit = true;
+        }
+
+        static FileActionService* fileActionService = new FileActionService();
+        static AsyncImageProvider* imageProvider = new AsyncImageProvider(logger);
         
-        static Logger logger;
-        static ExifDatabase exifDb;
-        exifDb.init();
-
-        static GalleryListModel rawGalleryModel;
-        static GalleryFilterProxyModel galleryModel;
-        galleryModel.setSourceModel(&rawGalleryModel);
-        galleryModel.setDatabase(&exifDb);
-
-        static FileDiscoveryService discoveryService;
-        discoveryService.setDatabase(&exifDb);
-
-        static VolumeMonitor volumeMonitor;
-        static ExifReader exifReader;
-        exifReader.setDatabase(&exifDb);
-
-        static FileActionService fileActionService;
-        static AsyncImageProvider *imageProvider = new AsyncImageProvider(&logger);
-
-        // Connect discovery service to model in tests just like in main app
-        QObject::connect(&discoveryService, &FileDiscoveryService::imagesDiscovered,
-                         &rawGalleryModel, &GalleryListModel::addImages);
-        QObject::connect(&discoveryService, &FileDiscoveryService::foldersDiscovered,
-                         &rawGalleryModel, &GalleryListModel::addFolders);
+        static bool connectionsDone = false;
+        if (!connectionsDone) {
+            QObject::connect(discoveryService, &FileDiscoveryService::imagesDiscovered,
+                             rawGalleryModel, &GalleryListModel::addImages);
+            QObject::connect(discoveryService, &FileDiscoveryService::foldersDiscovered,
+                             rawGalleryModel, &GalleryListModel::addFolders);
+            connectionsDone = true;
+        }
 
         engine->rootContext()->setContextProperty("allowFullScreen", false);
         engine->rootContext()->setContextProperty("isSelfTest", false);
-        engine->rootContext()->setContextProperty("fileActionService", &fileActionService);
-        engine->rootContext()->setContextProperty("logger", &logger);
-        engine->rootContext()->setContextProperty("galleryModel", &galleryModel);
-        engine->rootContext()->setContextProperty("rawGalleryModel", &rawGalleryModel);
-        engine->rootContext()->setContextProperty("exifDatabase", &exifDb);
-        engine->rootContext()->setContextProperty("discoveryService", &discoveryService);
-        engine->rootContext()->setContextProperty("volumeMonitor", &volumeMonitor);
-        engine->rootContext()->setContextProperty("exifReader", &exifReader);
+        engine->rootContext()->setContextProperty("fileActionService", fileActionService);
+        engine->rootContext()->setContextProperty("logger", logger);
+        engine->rootContext()->setContextProperty("galleryModel", galleryModel);
+        engine->rootContext()->setContextProperty("rawGalleryModel", rawGalleryModel);
+        engine->rootContext()->setContextProperty("exifDatabase", exifDb);
+        engine->rootContext()->setContextProperty("discoveryService", discoveryService);
+        engine->rootContext()->setContextProperty("volumeMonitor", volumeMonitor);
+        engine->rootContext()->setContextProperty("exifReader", exifReader);
         engine->rootContext()->setContextProperty("imageProvider", imageProvider);
         engine->rootContext()->setContextProperty("appVersion", QString(NINJAVIEW_VERSION));
         engine->rootContext()->setContextProperty("appBuild", QString(NINJAVIEW_BUILD_ID));
@@ -90,7 +106,9 @@ int main(int argc, char *argv[])
     app.setOrganizationDomain("net.veskuh.test");
 
     TestSetup setup;
-    return quick_test_main_with_setup(argc, argv, "ninjaview", QUICK_TEST_SOURCE_DIR, &setup);
+    int ret = quick_test_main_with_setup(argc, argv, "ninjaview", QUICK_TEST_SOURCE_DIR, &setup);
+    QThreadPool::globalInstance()->waitForDone();
+    return ret;
 }
 
 #include "qml_test_launcher.moc"

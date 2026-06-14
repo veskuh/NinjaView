@@ -1,3 +1,8 @@
+set(PLATFORM_SOURCES)
+if(APPLE)
+    list(APPEND PLATFORM_SOURCES ui/VideoThumbnailMac.mm)
+endif()
+
 # Move QML and core logic to a library
 qt_add_library(NinjaViewLib STATIC
     core/FileDiscoveryService.cpp
@@ -10,6 +15,7 @@ qt_add_library(NinjaViewLib STATIC
     ui/GalleryListModel.cpp
     ui/GalleryFilterProxyModel.cpp
     ui/AsyncImageProvider.cpp
+    ${PLATFORM_SOURCES}
 )
 
 # Move QML and core logic to a library
@@ -48,8 +54,16 @@ target_link_libraries(NinjaViewLib PUBLIC
     Qt6::ShaderTools
     Qt6::Concurrent
     Qt6::Sql
+    Qt6::Multimedia
     Kaakao
 )
+
+if(APPLE)
+    target_link_libraries(NinjaViewLib PUBLIC
+        "-framework AVFoundation"
+        "-framework CoreMedia"
+    )
+endif()
 
 target_include_directories(NinjaViewLib PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
@@ -157,17 +171,15 @@ if(APPLE)
             Qt3DInput.framework
             Qt3DAnimation.framework
             Qt3DExtras.framework
-            QtMultimedia.framework
-            QtMultimediaQuick.framework
         )
         
         foreach(fw IN LISTS UNUSED_FRAMEWORKS)
             file(REMOVE_RECURSE \"\${APP_CONTENTS}/Frameworks/\${fw}\")
         endforeach()
 
-        # Remove VirtualKeyboard and Multimedia plugins
+        # Remove VirtualKeyboard and FFmpeg Multimedia plugins
         file(REMOVE_RECURSE \"\${APP_CONTENTS}/PlugIns/platforminputcontexts/libqtvirtualkeyboardplugin.dylib\")
-        file(REMOVE_RECURSE \"\${APP_CONTENTS}/PlugIns/multimedia\")
+        file(REMOVE \"\${APP_CONTENTS}/PlugIns/multimedia/libqffmpegmediaplayer.dylib\")
         
         # Remove FFMPEG libraries
         file(GLOB FFMPEG_LIBS \"\${APP_CONTENTS}/Frameworks/libav*.dylib\" \"\${APP_CONTENTS}/Frameworks/libsw*.dylib\")

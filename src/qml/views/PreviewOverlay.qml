@@ -3,6 +3,9 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Kaakao
 import NinjaView
+import QtMultimedia
+import QtQuick.Controls
+import QtQuick.Layouts
 
 Item {
     id: root
@@ -114,6 +117,38 @@ Item {
         return false
     }
 
+    function isVideo(idx) {
+        let m = root.model
+        if (!m || idx < 0) return false
+        
+        let rowCount = 0
+        try {
+            if (typeof m.rowCount === 'function') rowCount = m.rowCount()
+            else if (m.count !== undefined) rowCount = m.count
+        } catch (e) {
+            return false
+        }
+        if (idx >= rowCount) return false
+
+        try {
+            if (typeof m.isVideo === 'function') {
+                return m.isVideo(idx)
+            }
+            if (typeof m.index === 'function' && typeof m.data === 'function') {
+                let qidx = m.index(idx, 0)
+                if (qidx) {
+                    let data = m.data(qidx, Qt.UserRole + 5) // IsVideoRole
+                    if (data !== undefined && data !== null) {
+                        return data
+                    }
+                }
+            }
+        } catch (e) {
+            // ignore
+        }
+        return false
+    }
+
     function getNextImageIndex(idx) {
         let next = idx + 1
         while (next < root.modelCount && root.isFolder(next)) {
@@ -131,6 +166,15 @@ Item {
     }
 
     readonly property string currentImagePath: root.getPath(root.currentIndex)
+    readonly property bool isCurrentVideo: root.isVideo(root.currentIndex)
+
+    function formatTime(ms) {
+        if (isNaN(ms) || ms < 0) return "0:00"
+        let totalSecs = Math.floor(ms / 1000)
+        let mins = Math.floor(totalSecs / 60)
+        let secs = totalSecs % 60
+        return mins + ":" + (secs < 10 ? "0" : "") + secs
+    }
     readonly property string nextImagePath: {
         let idx = root.getNextImageIndex(root.currentIndex)
         return idx !== -1 ? root.getPath(idx) : ""
@@ -203,7 +247,11 @@ Item {
             }
             fadeInAnimation.start()
             root.forceActiveFocus()
+            if (root.isCurrentVideo) {
+                mediaPlayer.play()
+            }
         } else {
+            mediaPlayer.stop()
             if (opacity > 0.0 && !_isFadingOut) {
                 _isFadingOut = true
                 _restoringVisible = true
@@ -218,6 +266,7 @@ Item {
     }
 
     onCurrentIndexChanged: {
+        mediaPlayer.stop()
         zoomableImage.reset()
     }
 
@@ -261,7 +310,135 @@ Item {
     ZoomableImage {
         id: zoomableImage
         anchors.fill: parent
-        source: root.currentImagePath ? resolveImageUrl(root.currentImagePath) : ""
+        visible: !root.isCurrentVideo
+        source: (root.currentImagePath && !root.isCurrentVideo) ? resolveImageUrl(root.currentImagePath) : ""
+    }
+
+    // Native Video Player
+    Item {
+        id: videoPlayerContainer
+        anchors.fill: parent
+        visible: root.isCurrentVideo && root.currentImagePath !== ""
+
+        MediaPlayer {
+            id: mediaPlayer
+            audioOutput: AudioOutput {}
+            videoOutput: videoOutput
+            source: (root.currentImagePath && root.isCurrentVideo) ? "file://" + root.currentImagePath : ""
+            loops: MediaPlayer.Infinite
+
+            onSourceChanged: {
+                if (root.visible && root.isCurrentVideo && source != "") {
+                    mediaPlayer.play()
+                }
+            }
+        }
+
+        VideoOutput {
+            id: videoOutput
+            anchors.fill: parent
+            fillMode: VideoOutput.PreserveAspectFit
+        }
+
+        // Glassmorphic Player Controls Overlay
+        Rectangle {
+            id: controlsPanel
+            anchors.bottom: parent.bottom
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.bottomMargin: 32
+            width: Math.min(parent.width - 64, 480)
+            height: 48
+            radius: 24
+            color: "#CC1C1C1C"
+            border.color: "#20FFFFFF"
+            z: 10
+            
+            opacity: mouseTracker.mouseActive ? 1.0 : 0.0
+            Behavior on opacity { NumberAnimation { duration: 250 } }
+            
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: 16
+                anchors.rightMargin: 16
+                spacing: 12
+                
+                Rectangle {
+                    id: playPauseButton
+                    width: 28
+                    height: 28
+                    radius: 14
+                    color: playPauseMouse.pressed ? "#30FFFFFF" : (playPauseMouse.containsMouse ? "#15FFFFFF" : "transparent")
+                    
+                    Text {
+                        anchors.centerIn: parent
+                        text: mediaPlayer.playbackState === MediaPlayer.PlayingState ? "⏸" : "▶"
+                        color: "white"
+                        font.pixelSize: 12
+                        anchors.horizontalCenterOffset: (mediaPlayer.playbackState === MediaPlayer.PlayingState) ? 0 : 1
+                    }
+                    
+                    MouseArea {
+                        id: playPauseMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        onClicked: {
+                            if (mediaPlayer.playbackState === MediaPlayer.PlayingState) {
+                                mediaPlayer.pause()
+                            } else {
+                                mediaPlayer.play()
+                            }
+                        }
+                    }
+                }
+                
+                Slider {
+                    id: seekBar
+                    Layout.fillWidth: true
+                    from: 0
+                    to: mediaPlayer.duration
+                    value: mediaPlayer.position
+                    onMoved: mediaPlayer.position = value
+                }
+                
+                KaakaoLabel {
+                    text: root.formatTime(mediaPlayer.position) + " / " + root.formatTime(mediaPlayer.duration)
+                    color: "white"
+                    font.pixelSize: 11
+                }
+            }
+        }
+
+        MouseArea {
+            id: mouseTracker
+            anchors.fill: parent
+            hoverEnabled: true
+            property bool mouseActive: true
+            property real lastMoveTime: 0
+            
+            onPositionChanged: {
+                mouseActive = true
+                lastMoveTime = Date.now()
+            }
+            
+            onClicked: {
+                if (mediaPlayer.playbackState === MediaPlayer.PlayingState) {
+                    mediaPlayer.pause()
+                } else {
+                    mediaPlayer.play()
+                }
+            }
+            
+            Timer {
+                interval: 2000
+                running: videoPlayerContainer.visible && mediaPlayer.playbackState === MediaPlayer.PlayingState
+                repeat: true
+                onTriggered: {
+                    if (Date.now() - mouseTracker.lastMoveTime > 2000) {
+                        mouseTracker.mouseActive = false
+                    }
+                }
+            }
+        }
     }
 
     // Hidden cursor Area during fullscreen (Mac OS X viewer aesthetic)
@@ -269,7 +446,11 @@ Item {
         id: cursorMouseArea
         objectName: "cursorMouseArea"
         anchors.fill: parent
-        cursorShape: root.visible ? Qt.BlankCursor : Qt.ArrowCursor
+        cursorShape: {
+            if (!root.visible) return Qt.ArrowCursor;
+            if (!root.isCurrentVideo) return Qt.BlankCursor;
+            return (typeof mouseTracker !== "undefined" && mouseTracker && mouseTracker.mouseActive) ? Qt.ArrowCursor : Qt.BlankCursor;
+        }
         enabled: false // Don't block clicks
         z: 1 
     }
@@ -366,10 +547,18 @@ Item {
             zoomableImage.applyZoom(Math.max(zoomableImage.currentZoom * 0.9, 0.01), zoomableImage.width / 2, zoomableImage.height / 2)
             event.accepted = true
         } else if (event.key === Qt.Key_Space) {
-            if (zoomableImage.fitToScreen) {
-                zoomableImage.applyZoom(1.0, zoomableImage.width / 2, zoomableImage.height / 2)
+            if (root.isCurrentVideo) {
+                if (mediaPlayer.playbackState === MediaPlayer.PlayingState) {
+                    mediaPlayer.pause()
+                } else {
+                    mediaPlayer.play()
+                }
             } else {
-                zoomableImage.fitToScreen = true
+                if (zoomableImage.fitToScreen) {
+                    zoomableImage.applyZoom(1.0, zoomableImage.width / 2, zoomableImage.height / 2)
+                } else {
+                    zoomableImage.fitToScreen = true
+                }
             }
             event.accepted = true
         } else if (event.key === Qt.Key_Right) {

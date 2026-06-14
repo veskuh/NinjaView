@@ -113,6 +113,19 @@ bool GalleryFilterProxyModel::isFolder(int row) const
     return false;
 }
 
+bool GalleryFilterProxyModel::isVideo(int row) const
+{
+    auto srcModel = qobject_cast<GalleryListModel*>(sourceModel());
+    if (srcModel) {
+        QModelIndex proxyIndex = this->index(row, 0);
+        QModelIndex sourceIndex = mapToSource(proxyIndex);
+        if (sourceIndex.isValid()) {
+            return srcModel->isVideo(sourceIndex.row());
+        }
+    }
+    return false;
+}
+
 bool GalleryFilterProxyModel::filterAcceptsRow(int source_row, const QModelIndex &source_parent) const
 {
     Q_UNUSED(source_parent);
@@ -131,6 +144,22 @@ bool GalleryFilterProxyModel::filterAcceptsRow(int source_row, const QModelIndex
     }
 
     QString filePath = srcModel->getRawPath(source_row);
+    QFileInfo fileInfo(filePath);
+
+    // Apply smart folder type filtering (Pictures library has images only, Videos has movies only)
+    if (m_currentFolderPath == "smart://pictures" || m_currentFolderPath == "smart://videos") {
+        QString ext = fileInfo.suffix().toUpper();
+        if (ext == "JPEG") ext = "JPG";
+        if (m_currentFolderPath == "smart://pictures") {
+            if (ext != "JPG" && ext != "PNG" && ext != "WEBP" && ext != "BMP") {
+                return false;
+            }
+        } else if (m_currentFolderPath == "smart://videos") {
+            if (ext != "MP4" && ext != "MOV") {
+                return false;
+            }
+        }
+    }
 
     // Apply search query criteria for files
     if (!m_searchQuery.isEmpty()) {
@@ -190,7 +219,7 @@ bool GalleryFilterProxyModel::filterAcceptsRow(int source_row, const QModelIndex
         return true;
     }
 
-    QFileInfo fileInfo(filePath);
+    
     
     QDateTime fileDate = fileInfo.lastModified();
     QVariantMap exif;
@@ -218,7 +247,7 @@ bool GalleryFilterProxyModel::filterAcceptsRow(int source_row, const QModelIndex
 
     QString ext = fileInfo.suffix().toUpper();
     if (ext == "JPEG") ext = "JPG";
-    if (m_filterType == "JPG" || m_filterType == "PNG" || m_filterType == "WEBP" || m_filterType == "BMP") {
+    if (m_filterType == "JPG" || m_filterType == "PNG" || m_filterType == "WEBP" || m_filterType == "BMP" || m_filterType == "MP4" || m_filterType == "MOV") {
         return (ext == m_filterType);
     }
 

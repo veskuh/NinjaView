@@ -4,6 +4,7 @@
 #include <QImage>
 #include <QPainter>
 #include <QStandardPaths>
+#include <QProcess>
 
 /// @brief Tests for AsyncImageProvider thumbnail generation and caching.
 class TestAsyncImageProvider : public QObject
@@ -20,6 +21,7 @@ private slots:
     void testDiskCacheOps();
     void testClearImageCacheSpecific();
     void testInMemoryRotationDecodeAndQueryParam();
+    void testRequestVideo();
     void cleanupTestCase();
 };
 
@@ -279,6 +281,44 @@ void TestAsyncImageProvider::testInMemoryRotationDecodeAndQueryParam()
     // Clear in-memory rotation
     provider.clearInMemoryRotation(filePathWithQuery);
     QCOMPARE(provider.inMemoryRotation(filePathWithQuery), 0);
+}
+
+void TestAsyncImageProvider::testRequestVideo()
+{
+    // Create a temporary mp4 file path
+    QTemporaryFile tempFile(QDir::tempPath() + "/videoXXXXXX.mp4");
+    QVERIFY(tempFile.open());
+    QString filePath = tempFile.fileName();
+    tempFile.close();
+
+    // Generate a real 1-second valid H264 MP4 file using the system's ffmpeg
+    QProcess ffmpegProc;
+    QStringList args;
+    args << "-y" << "-f" << "lavfi" << "-i" << "testsrc=duration=1:size=160x120:rate=10" 
+         << "-pix_fmt" << "yuv420p" << filePath;
+    ffmpegProc.start("ffmpeg", args);
+    if (ffmpegProc.waitForFinished(5000)) {
+        qDebug() << "Generated test video at:" << filePath;
+    }
+
+    AsyncImageProvider provider;
+    QSize requestedSize(50, 50);
+    
+    QQuickImageResponse *response = provider.requestImageResponse(filePath, requestedSize);
+    QVERIFY(response);
+    
+    QSignalSpy spy(response, &QQuickImageResponse::finished);
+    QVERIFY(spy.wait(5000));
+    
+    QQuickTextureFactory *factory = response->textureFactory();
+    QVERIFY(factory);
+    QImage resultImage = factory->image();
+    
+    // On platforms with ffmpeg installed (macOS in our case), it should successfully decode a frame!
+    QVERIFY(!resultImage.isNull());
+    QCOMPARE(resultImage.size(), QSize(50, 37));
+    
+    delete response;
 }
 
 QTEST_MAIN(TestAsyncImageProvider)

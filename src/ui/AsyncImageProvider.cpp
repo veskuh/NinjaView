@@ -11,6 +11,54 @@
 #include <QCryptographicHash>
 #include <QFileInfo>
 
+#ifdef Q_OS_MAC
+QImage extractVideoFrameMac(const QString &filePath);
+#endif
+
+#ifdef Q_OS_LINUX
+#include <QProcess>
+#include <QThread>
+QImage extractVideoFrameLinux(const QString &filePath)
+{
+    QString tempFile = QDir::tempPath() + "/ninjaview_thumb_" + QCryptographicHash::hash(filePath.toUtf8(), QCryptographicHash::Md5).toHex() + ".jpg";
+    if (QFile::exists(tempFile)) {
+        QFile::remove(tempFile);
+    }
+    
+    QProcess process;
+    QStringList args;
+    args << "filesrc location=" + filePath 
+         << "!" << "decodebin" 
+         << "!" << "videoconvert" 
+         << "!" << "jpegenc" 
+         << "!" << "filesink location=" + tempFile;
+         
+    process.start("gst-launch-1.0", args);
+    
+    bool success = false;
+    for (int i = 0; i < 40; ++i) { // 2000ms max
+        QThread::msleep(50);
+        if (QFile::exists(tempFile) && QFileInfo(tempFile).size() > 0) {
+            success = true;
+            break;
+        }
+        if (process.state() == QProcess::NotRunning) {
+            break;
+        }
+    }
+    
+    process.kill();
+    process.waitForFinished(500);
+    
+    QImage img;
+    if (success && QFile::exists(tempFile)) {
+        img.load(tempFile);
+        QFile::remove(tempFile);
+    }
+    return img;
+}
+#endif
+
 static QMutex s_cacheMutex;
 
 AsyncImageResponse::AsyncImageResponse(const QString &id, const QSize &requestedSize, AsyncImageProvider *provider, Logger *logger)
@@ -84,37 +132,21 @@ void AsyncImageResponse::run()
     }
 
     // 3. Decode from Source
-    QImageReader reader(cleanPath);
-    reader.setAutoTransform(true);
-    if (reader.canRead()) {
-        if (m_requestedSize.isValid()) {
-            QSize size = reader.size();
-            if (size.width() > m_requestedSize.width() || size.height() > m_requestedSize.height()) {
-                size.scale(m_requestedSize, Qt::KeepAspectRatio);
-                reader.setScaledSize(size);
-            }
-        }
-        
-        if (m_isCancelled) {
-            emit finished();
-            return;
-        }
-
-        m_image = reader.read();
-        
-        if (m_isCancelled) {
-            emit finished();
-            return;
-        }
-
+    QString ext = QFileInfo(cleanPath).suffix().toLower();
+    bool isVideo = (ext == "mp4" || ext == "mov");
+    if (isVideo) {
+#ifdef Q_OS_MAC
+        m_image = extractVideoFrameMac(cleanPath);
+#elif defined(Q_OS_LINUX)
+        m_image = extractVideoFrameLinux(cleanPath);
+#endif
         if (!m_image.isNull()) {
-            // Apply in-memory rotation if applicable
-            if (rotationAngle != 0) {
-                QTransform transform;
-                transform.rotate(rotationAngle);
-                m_image = m_image.transformed(transform);
+            if (m_requestedSize.isValid()) {
+                if (m_image.width() > m_requestedSize.width() || m_image.height() > m_requestedSize.height()) {
+                    m_image = m_image.scaled(m_requestedSize, Qt::KeepAspectRatio);
+                }
             }
-
+            
             // Save to memory cache
             {
                 QMutexLocker locker(&s_cacheMutex);
@@ -126,6 +158,52 @@ void AsyncImageResponse::run()
             if (rotationAngle == 0) {
                 QDir().mkpath(cacheDir);
                 m_image.save(diskPath, "JPG", 80);
+            }
+        }
+    } else {
+        QImageReader reader(cleanPath);
+        reader.setAutoTransform(true);
+        if (reader.canRead()) {
+            if (m_requestedSize.isValid()) {
+                QSize size = reader.size();
+                if (size.width() > m_requestedSize.width() || size.height() > m_requestedSize.height()) {
+                    size.scale(m_requestedSize, Qt::KeepAspectRatio);
+                    reader.setScaledSize(size);
+                }
+            }
+            
+            if (m_isCancelled) {
+                emit finished();
+                return;
+            }
+
+            m_image = reader.read();
+            
+            if (m_isCancelled) {
+                emit finished();
+                return;
+            }
+
+            if (!m_image.isNull()) {
+                // Apply in-memory rotation if applicable
+                if (rotationAngle != 0) {
+                    QTransform transform;
+                    transform.rotate(rotationAngle);
+                    m_image = m_image.transformed(transform);
+                }
+
+                // Save to memory cache
+                {
+                    QMutexLocker locker(&s_cacheMutex);
+                    m_provider->m_cache.insert(cacheKey, new QImage(m_image), m_image.sizeInBytes());
+                    m_provider->m_cachedKeys[cleanPath].append(cacheKey);
+                }
+                
+                // Save to disk cache ONLY if it is not rotated in-memory
+                if (rotationAngle == 0) {
+                    QDir().mkpath(cacheDir);
+                    m_image.save(diskPath, "JPG", 80);
+                }
             }
         }
     }

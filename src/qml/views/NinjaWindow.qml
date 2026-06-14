@@ -165,8 +165,9 @@ KaakaoWindow {
                     let item = sidebarPanel.currentIndex >= 0 ? sidebarPanel.sidebarModel.get(sidebarPanel.currentIndex) : null
                     if (item) {
                         if (item.name === qsTr("Pictures") || item.name === "Pictures") {
-                            let pictures = StandardPaths.writableLocation(StandardPaths.PicturesLocation)
-                            discoveryService.scanDirectory(pictures)
+                            discoveryService.scanDirectory("smart://pictures")
+                        } else if (item.name === qsTr("Videos") || item.name === "Videos") {
+                            discoveryService.scanDirectory("smart://videos")
                         } else if (item.name === qsTr("SD Card") || item.name === "SD Card") {
                             if (volumeMonitor.sdCardPath !== "") {
                                 discoveryService.scanDirectory(volumeMonitor.sdCardPath + "/DCIM", true)
@@ -209,8 +210,9 @@ KaakaoWindow {
                     let item = sidebarPanel.currentIndex >= 0 ? sidebarPanel.sidebarModel.get(sidebarPanel.currentIndex) : null
                     if (item) {
                         if (item.name === qsTr("Pictures") || item.name === "Pictures") {
-                            let pictures = StandardPaths.writableLocation(StandardPaths.PicturesLocation)
-                            discoveryService.scanDirectory(pictures)
+                            discoveryService.scanDirectory("smart://pictures")
+                        } else if (item.name === qsTr("Videos") || item.name === "Videos") {
+                            discoveryService.scanDirectory("smart://videos")
                         } else if (item.name === qsTr("SD Card") || item.name === "SD Card") {
                             if (volumeMonitor.sdCardPath !== "") {
                                 discoveryService.scanDirectory(volumeMonitor.sdCardPath + "/DCIM", true)
@@ -265,7 +267,9 @@ KaakaoWindow {
         if (!item) return root.currentFolderDescription;
         
         if (item.name === qsTr("Pictures") || item.name === "Pictures") {
-            return "pictures_library";
+            return "smart://pictures";
+        } else if (item.name === qsTr("Videos") || item.name === "Videos") {
+            return "smart://videos";
         } else if (item.name === qsTr("SD Card") || item.name === "SD Card") {
             return "sd_card_device";
         } else if (item.path !== undefined && item.path !== "") {
@@ -284,11 +288,10 @@ KaakaoWindow {
             console.log("Self-test mode: keeping dummy data in gallery model")
             return
         }
-        let pictures = StandardPaths.writableLocation(StandardPaths.PicturesLocation)
-        console.log("Starting initial scan of Pictures folder:", pictures)
+        console.log("Starting initial scan of Pictures library")
         galleryModel.clear()
         root.loading = true
-        discoveryService.scanDirectory(pictures)
+        discoveryService.scanDirectory("smart://pictures")
     }
 
     Connections {
@@ -334,15 +337,18 @@ KaakaoWindow {
             SplitView.minimumWidth: 150
             SplitView.maximumWidth: 300
 
-            onDirectorySelected: (name, path, isPictures, isSdCard) => {
+            onDirectorySelected: (name, path, isPictures, isVideos, isSdCard) => {
                 root.currentTitle = name
                 root.currentFolderDescription = ""
                 
                 if (isPictures) {
-                    let pictures = StandardPaths.writableLocation(StandardPaths.PicturesLocation)
                     galleryModel.clear()
                     root.loading = true
-                    discoveryService.scanDirectory(pictures)
+                    discoveryService.scanDirectory("smart://pictures")
+                } else if (isVideos) {
+                    galleryModel.clear()
+                    root.loading = true
+                    discoveryService.scanDirectory("smart://videos")
                 } else if (isSdCard) {
                     if (volumeMonitor.sdCardPath !== "") {
                         galleryModel.clear()

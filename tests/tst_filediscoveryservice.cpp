@@ -45,11 +45,15 @@ void TestFileDiscoveryService::testScanDirectory()
     QTemporaryDir tempDir;
     QVERIFY(tempDir.isValid());
 
-    // Create image files
+    // Create image and video files
     QString img1 = tempDir.path() + "/img1.jpg";
     QString img2 = tempDir.path() + "/img2.png";
+    QString video1 = tempDir.path() + "/video1.mp4";
+    QString video2 = tempDir.path() + "/video2.mov";
     QFile f1(img1); QVERIFY(f1.open(QIODevice::WriteOnly)); f1.write("dummy"); f1.close();
     QFile f2(img2); QVERIFY(f2.open(QIODevice::WriteOnly)); f2.write("dummy"); f2.close();
+    QFile f3(video1); QVERIFY(f3.open(QIODevice::WriteOnly)); f3.write("dummy"); f3.close();
+    QFile f4(video2); QVERIFY(f4.open(QIODevice::WriteOnly)); f4.write("dummy"); f4.close();
 
     FileDiscoveryService service;
     ExifDatabase db;
@@ -64,9 +68,11 @@ void TestFileDiscoveryService::testScanDirectory()
 
     QCOMPARE(imgSpy.count(), 1);
     QStringList imgList = imgSpy.takeFirst().at(0).toStringList();
-    QCOMPARE(imgList.size(), 2);
+    QCOMPARE(imgList.size(), 4);
     QVERIFY(imgList.contains(img1));
     QVERIFY(imgList.contains(img2));
+    QVERIFY(imgList.contains(video1));
+    QVERIFY(imgList.contains(video2));
 }
 
 void TestFileDiscoveryService::testScanDirectoryWithFolders()

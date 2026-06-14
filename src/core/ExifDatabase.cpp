@@ -228,17 +228,29 @@ QStringList ExifDatabase::getUniqueCamerasForFolder(const QString &folderPath)
     if (!db.isOpen()) return cameras;
 
     QSqlQuery query(db);
-    query.prepare("SELECT DISTINCT make, model FROM exif_cache WHERE file_path LIKE :prefix AND make IS NOT NULL AND make != ''");
-
-    QString prefix = folderPath;
-    if (prefix.startsWith("file://")) {
-        prefix = QUrl(prefix).toLocalFile();
+    bool isSmartMedia = (folderPath == "smart://media");
+    if (isSmartMedia) {
+        query.prepare("SELECT DISTINCT make, model FROM exif_cache WHERE (file_path LIKE :picPrefix OR file_path LIKE :movPrefix) AND make IS NOT NULL AND make != ''");
+        QString picPrefix = QDir::cleanPath(QStandardPaths::writableLocation(QStandardPaths::PicturesLocation)) + "/%";
+        QString movPrefix = QDir::cleanPath(QStandardPaths::writableLocation(QStandardPaths::MoviesLocation)) + "/%";
+        query.bindValue(":picPrefix", picPrefix);
+        query.bindValue(":movPrefix", movPrefix);
+    } else {
+        query.prepare("SELECT DISTINCT make, model FROM exif_cache WHERE file_path LIKE :prefix AND make IS NOT NULL AND make != ''");
+        QString prefix = folderPath;
+        if (prefix == "smart://pictures") {
+            prefix = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
+        } else if (prefix == "smart://videos") {
+            prefix = QStandardPaths::writableLocation(QStandardPaths::MoviesLocation);
+        } else if (prefix.startsWith("file://")) {
+            prefix = QUrl(prefix).toLocalFile();
+        }
+        prefix = QDir::cleanPath(prefix);
+        if (!prefix.endsWith("/")) {
+            prefix += "/";
+        }
+        query.bindValue(":prefix", prefix + "%");
     }
-    if (!prefix.endsWith("/")) {
-        prefix += "/";
-    }
-
-    query.bindValue(":prefix", prefix + "%");
 
     if (query.exec()) {
         while (query.next()) {
@@ -273,16 +285,29 @@ QVariantMap ExifDatabase::getAvailableFiltersForFolder(const QString &folderPath
     if (!db.isOpen()) return result;
 
     QSqlQuery query(db);
-    query.prepare("SELECT file_path, last_modified, datetime FROM exif_cache WHERE file_path LIKE :prefix");
-
-    QString prefix = folderPath;
-    if (prefix.startsWith("file://")) {
-        prefix = QUrl(prefix).toLocalFile();
+    bool isSmartMedia = (folderPath == "smart://media");
+    if (isSmartMedia) {
+        query.prepare("SELECT file_path, last_modified, datetime FROM exif_cache WHERE (file_path LIKE :picPrefix OR file_path LIKE :movPrefix)");
+        QString picPrefix = QDir::cleanPath(QStandardPaths::writableLocation(QStandardPaths::PicturesLocation)) + "/%";
+        QString movPrefix = QDir::cleanPath(QStandardPaths::writableLocation(QStandardPaths::MoviesLocation)) + "/%";
+        query.bindValue(":picPrefix", picPrefix);
+        query.bindValue(":movPrefix", movPrefix);
+    } else {
+        query.prepare("SELECT file_path, last_modified, datetime FROM exif_cache WHERE file_path LIKE :prefix");
+        QString prefix = folderPath;
+        if (prefix == "smart://pictures") {
+            prefix = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
+        } else if (prefix == "smart://videos") {
+            prefix = QStandardPaths::writableLocation(QStandardPaths::MoviesLocation);
+        } else if (prefix.startsWith("file://")) {
+            prefix = QUrl(prefix).toLocalFile();
+        }
+        prefix = QDir::cleanPath(prefix);
+        if (!prefix.endsWith("/")) {
+            prefix += "/";
+        }
+        query.bindValue(":prefix", prefix + "%");
     }
-    if (!prefix.endsWith("/")) {
-        prefix += "/";
-    }
-    query.bindValue(":prefix", prefix + "%");
 
     bool hasToday = false;
     bool hasThisWeek = false;
@@ -302,7 +327,15 @@ QVariantMap ExifDatabase::getAvailableFiltersForFolder(const QString &folderPath
             if (lastDot != -1) {
                 QString ext = filePath.mid(lastDot + 1).toUpper();
                 if (ext == "JPEG") ext = "JPG";
-                if (ext == "JPG" || ext == "PNG" || ext == "WEBP" || ext == "BMP") {
+                bool ok = false;
+                if (folderPath == "smart://pictures") {
+                    ok = (ext == "JPG" || ext == "PNG" || ext == "WEBP" || ext == "BMP");
+                } else if (folderPath == "smart://videos") {
+                    ok = (ext == "MP4" || ext == "MOV");
+                } else {
+                    ok = (ext == "JPG" || ext == "PNG" || ext == "WEBP" || ext == "BMP" || ext == "MP4" || ext == "MOV");
+                }
+                if (ok) {
                     imageTypesSet.insert(ext);
                 }
             }

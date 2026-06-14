@@ -6,6 +6,7 @@
 struct GalleryItem {
     QString path;
     bool isFolder;
+    bool isVideo;
 };
 
 class GalleryListModel : public QAbstractListModel
@@ -18,7 +19,8 @@ public:
         FilePathRole = Qt::UserRole + 1,
         FileNameRole,
         RawPathRole,
-        IsFolderRole
+        IsFolderRole,
+        IsVideoRole
     };
 
     explicit GalleryListModel(bool populateDummy = false, QObject *parent = nullptr);
@@ -34,6 +36,7 @@ public:
     Q_INVOKABLE QString getRawPath(int row) const;
     Q_INVOKABLE QString getFileName(int row) const;
     Q_INVOKABLE bool isFolder(int row) const;
+    Q_INVOKABLE bool isVideo(int row) const;
 
 signals:
     void countChanged();

@@ -13,6 +13,7 @@ private slots:
     void testRemoveImage();
     void testClear();
     void testFolders();
+    void testVideoSupport();
 };
 
 void TestGalleryListModel::initTestCase()
@@ -107,6 +108,29 @@ void TestGalleryListModel::testFolders()
     QCOMPARE(model.getFileName(3), QString("img2.jpg"));
     QVERIFY(!model.isFolder(3));
     QCOMPARE(model.data(model.index(3, 0), GalleryListModel::IsFolderRole).toBool(), false);
+}
+
+void TestGalleryListModel::testVideoSupport()
+{
+    GalleryListModel model;
+    model.clear();
+    
+    // Add mix of images and videos
+    model.addImages({"/tmp/img.jpg", "/tmp/video.mp4", "/tmp/video2.MOV", "/tmp/img2.png"});
+    QCOMPARE(model.rowCount(), 4);
+    
+    // Check classification
+    QCOMPARE(model.isVideo(0), false);
+    QCOMPARE(model.data(model.index(0, 0), GalleryListModel::IsVideoRole).toBool(), false);
+    
+    QCOMPARE(model.isVideo(1), true);
+    QCOMPARE(model.data(model.index(1, 0), GalleryListModel::IsVideoRole).toBool(), true);
+    
+    QCOMPARE(model.isVideo(2), true);
+    QCOMPARE(model.data(model.index(2, 0), GalleryListModel::IsVideoRole).toBool(), true);
+    
+    QCOMPARE(model.isVideo(3), false);
+    QCOMPARE(model.data(model.index(3, 0), GalleryListModel::IsVideoRole).toBool(), false);
 }
 
 QTEST_MAIN(TestGalleryListModel)
