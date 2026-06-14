@@ -285,21 +285,7 @@ void TestAsyncImageProvider::testInMemoryRotationDecodeAndQueryParam()
 
 void TestAsyncImageProvider::testRequestVideo()
 {
-    // Create a temporary mp4 file path
-    QTemporaryFile tempFile(QDir::tempPath() + "/videoXXXXXX.mp4");
-    QVERIFY(tempFile.open());
-    QString filePath = tempFile.fileName();
-    tempFile.close();
-
-    // Generate a real 1-second valid H264 MP4 file using the system's ffmpeg
-    QProcess ffmpegProc;
-    QStringList args;
-    args << "-y" << "-f" << "lavfi" << "-i" << "testsrc=duration=1:size=160x120:rate=10" 
-         << "-pix_fmt" << "yuv420p" << filePath;
-    ffmpegProc.start("ffmpeg", args);
-    if (ffmpegProc.waitForFinished(5000)) {
-        qDebug() << "Generated test video at:" << filePath;
-    }
+    QString filePath = "data/test.mp4";
 
     AsyncImageProvider provider;
     QSize requestedSize(50, 50);

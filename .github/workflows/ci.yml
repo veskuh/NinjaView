@@ -35,7 +35,11 @@ jobs:
             libxcb-render-util0 \
             libxcb-xkb1 \
             libegl1-mesa-dev \
-            xvfb
+            xvfb \
+            gstreamer1.0-tools \
+            gstreamer1.0-plugins-base \
+            gstreamer1.0-plugins-good \
+            gstreamer1.0-libav
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v3
