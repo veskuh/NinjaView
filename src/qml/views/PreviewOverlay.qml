@@ -236,6 +236,17 @@ Item {
         }
     }
 
+    Timer {
+        id: autoplayDelayTimer
+        interval: 350 // slight delay to allow transition to fullscreen to complete
+        repeat: false
+        onTriggered: {
+            if (root.visible && root.isCurrentVideo) {
+                mediaPlayer.play()
+            }
+        }
+    }
+
     onVisibleChanged: {
         if (visible) {
             if (_restoringVisible) {
@@ -248,9 +259,10 @@ Item {
             fadeInAnimation.start()
             root.forceActiveFocus()
             if (root.isCurrentVideo) {
-                mediaPlayer.play()
+                autoplayDelayTimer.start()
             }
         } else {
+            autoplayDelayTimer.stop()
             mediaPlayer.stop()
             if (opacity > 0.0 && !_isFadingOut) {
                 _isFadingOut = true
@@ -266,6 +278,7 @@ Item {
     }
 
     onCurrentIndexChanged: {
+        autoplayDelayTimer.stop()
         mediaPlayer.stop()
         zoomableImage.reset()
     }
@@ -329,7 +342,11 @@ Item {
 
             onSourceChanged: {
                 if (root.visible && root.isCurrentVideo && source != "") {
-                    mediaPlayer.play()
+                    if (fadeInAnimation.running) {
+                        autoplayDelayTimer.start()
+                    } else {
+                        mediaPlayer.play()
+                    }
                 }
             }
         }

@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.6.1] - 2026-06-14
 
+### Added
+- Added a slight delay before fullscreen video autoplayback starts to allow the transition/fade-in animation to complete cleanly.
+
 ### Fixed
 - Fixed directory scanning performance latency by skipping EXIF extraction on video files (preventing massive video files from being read into memory).
 
