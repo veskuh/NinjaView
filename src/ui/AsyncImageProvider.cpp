@@ -39,6 +39,10 @@ QImage extractVideoFrameLinux(const QString &filePath)
          << "!" << "filesink" << ("location='" + escapedTemp + "'");
          
     process.start("gst-launch-1.0", args);
+    if (!process.waitForStarted(200)) {
+        qWarning() << "GStreamer: Failed to start process gst-launch-1.0. Check if GStreamer is installed and in PATH.";
+        return QImage();
+    }
     
     bool success = false;
     for (int i = 0; i < 40; ++i) { // 2000ms max

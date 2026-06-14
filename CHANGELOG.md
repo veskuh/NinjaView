@@ -11,9 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Added a slight delay before fullscreen video autoplayback starts to allow the transition/fade-in animation to complete cleanly.
+- Added key focus recovery on video player controls so that the Spacebar key consistently toggles play/pause.
 
 ### Fixed
 - Fixed directory scanning performance latency by skipping EXIF extraction on video files (preventing massive video files from being read into memory).
+- Fixed GStreamer subprocess execution to verify if gst-launch-1.0 started successfully, failing fast instead of wasting CPU loops if missing.
 
 ## [0.6.0] - 2026-06-14
 

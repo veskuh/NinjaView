@@ -399,6 +399,7 @@ Item {
                         anchors.fill: parent
                         hoverEnabled: true
                         onClicked: {
+                            root.forceActiveFocus()
                             if (mediaPlayer.playbackState === MediaPlayer.PlayingState) {
                                 mediaPlayer.pause()
                             } else {
@@ -414,6 +415,7 @@ Item {
                     from: 0
                     to: mediaPlayer.duration
                     value: mediaPlayer.position
+                    focusPolicy: Qt.NoFocus
                     onMoved: mediaPlayer.position = value
                 }
                 
@@ -438,6 +440,7 @@ Item {
             }
             
             onClicked: {
+                root.forceActiveFocus()
                 if (mediaPlayer.playbackState === MediaPlayer.PlayingState) {
                     mediaPlayer.pause()
                 } else {
