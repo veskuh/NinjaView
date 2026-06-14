@@ -50,6 +50,11 @@ QImage extractVideoFrameLinux(const QString &filePath)
     process.kill();
     process.waitForFinished(500);
     
+    if (!success) {
+        qDebug() << "GStreamer pipeline failed. Output:" << process.readAllStandardOutput();
+        qDebug() << "GStreamer pipeline error:" << process.readAllStandardError();
+    }
+    
     QImage img;
     if (success && QFile::exists(tempFile)) {
         img.load(tempFile);
