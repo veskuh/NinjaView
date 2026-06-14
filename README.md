@@ -1,16 +1,23 @@
 # NinjaView
 
-NinjaView is a simple C++/Qt6 image viewer designed for previewing of photos, tailored for workflows involving SD cards and digital cameras. It features a classic look built on the [Kaakao](https://github.com/veskuh/Kaakao) component set.
+NinjaView is a simple C++/Qt6 image and video viewer designed for previewing files, tailored for workflows involving SD cards and digital cameras. It features a classic look built on the [Kaakao](https://github.com/veskuh/Kaakao) component set.
 
 ![Screenshot 2026-05](/assets/screenshot.png?raw=true)
 
 ## Features
 
-- Asynchronous image decoding with caching for fast gallery browsing.
+- Asynchronous image and video frame decoding with caching for fast gallery browsing.
+- Support for images and video formats (JPEG, WebP, MP4, and MOV).
+- Separate "Pictures" and "Videos" sidebar library navigation.
+- Category scope bar filters for both pictures and videos.
+- Double-click any file to enter fullscreen preview mode.
+- Interactive video playback controls: play/pause button overlay, click-to-toggle play/pause.
+- Smart fullscreen behavior:
+  - Mouse cursor auto-hides during video playback inactivity and reappears on mouse movement.
+  - Video autoplay when navigating between video files in fullscreen using arrow keys.
 - Lossless JPEG rotation (modifies the EXIF orientation metadata on disk; falls back to session-only in-memory rotation on write-protected files such as camera SD cards).
-- Double-click any image to enter fullscreen viewing mode.
 - Full keyboard support:
-  - Arrow keys for cycling through images.
+  - Arrow keys for cycling through files.
   - `Escape` to exit fullscreen view.
   - `Ctrl + [` and `Ctrl + ]` to rotate JPEGs left/right in the gallery grid.
   - `L` and `R` keys to rotate JPEGs left/right in fullscreen preview mode.
@@ -22,9 +29,10 @@ NinjaView is a simple C++/Qt6 image viewer designed for previewing of photos, ta
 
 ### Prerequisites
 
-- Qt 6.4.2+ (with optional ImageFormats module for WebP support)
+- Qt 6.4.2+ (with optional ImageFormats module for WebP support, and QtMultimedia module for video playback)
 - CMake 3.16+
 - C++17
+- On Linux, GStreamer (specifically `gstreamer1.0-plugins-base`, `gstreamer1.0-plugins-good`, and `gstreamer1.0-libav`) is required for video decoding and thumbnail generation.
 
 ### Build Instructions
 
