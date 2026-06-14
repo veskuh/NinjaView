@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-06-14
+
+### Fixed
+- Fixed directory scanning performance latency by skipping EXIF extraction on video files (preventing massive video files from being read into memory).
+
 ## [0.6.0] - 2026-06-14
 
 ### Added
@@ -40,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed memory handling bugs during application shutdown.
 - Resolved styling and qualified QML access warnings.
 
-[unreleased]: https://github.com/veskuh/NinjaView/compare/v0.6.0...HEAD
+[unreleased]: https://github.com/veskuh/NinjaView/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/veskuh/NinjaView/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/veskuh/NinjaView/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/veskuh/NinjaView/releases/tag/v0.5.0

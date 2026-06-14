@@ -65,6 +65,28 @@ QVariantMap ExifReader::getExifData(const QString &filePath)
         return data;
     }
 
+    // Check if it is a video file to avoid reading large files into memory
+    QString ext = fileInfo.suffix().toLower();
+    bool isVideo = (ext == "mp4" || ext == "mov");
+    if (isVideo) {
+        qint64 sizeInBytes = fileInfo.size();
+        QString sizeStr;
+        if (sizeInBytes >= 1024 * 1024) {
+            sizeStr = QString("%1 MB").arg(double(sizeInBytes) / (1024.0 * 1024.0), 0, 'f', 2);
+        } else if (sizeInBytes >= 1024) {
+            sizeStr = QString("%1 KB").arg(double(sizeInBytes) / 1024.0, 0, 'f', 1);
+        } else {
+            sizeStr = QString("%1 B").arg(sizeInBytes);
+        }
+        data["FileSize"] = sizeStr;
+        data["DateTime"] = fileInfo.lastModified().toString("yyyy:MM:dd HH:mm:ss");
+        
+        if (m_db) {
+            m_db->saveExifData(filePath, fileInfo.size(), fileInfo.lastModified(), data);
+        }
+        return data;
+    }
+
     // Extract basic properties
     QImageReader reader(filePath);
     if (reader.canRead()) {
