@@ -40,29 +40,32 @@ QVariantMap ExifReader::getExifData(const QString &filePath)
     }
 
     if (m_db && m_db->isCached(filePath, fileInfo.size(), fileInfo.lastModified())) {
-        data = m_db->getExifData(filePath);
-        bool updated = false;
-        // Backfill dimensions if they are missing from existing database record
-        if (data.value("Dimensions").toString().isEmpty()) {
-            QImageReader reader(filePath);
-            if (reader.canRead()) {
-                QSize imgSize = reader.size();
-                if (imgSize.isValid()) {
-                    QString dim = QString("%1x%2").arg(imgSize.width()).arg(imgSize.height());
-                    data["Dimensions"] = dim;
-                    updated = true;
+        QVariantMap cachedData = m_db->getExifData(filePath);
+        if (!cachedData.isEmpty() && !cachedData.value("FileSize").toString().isEmpty()) {
+            data = cachedData;
+            bool updated = false;
+            // Backfill dimensions if they are missing from existing database record
+            if (data.value("Dimensions").toString().isEmpty()) {
+                QImageReader reader(filePath);
+                if (reader.canRead()) {
+                    QSize imgSize = reader.size();
+                    if (imgSize.isValid()) {
+                        QString dim = QString("%1x%2").arg(imgSize.width()).arg(imgSize.height());
+                        data["Dimensions"] = dim;
+                        updated = true;
+                    }
                 }
             }
+            // Backfill DateTime with fs timestamp if it is empty
+            if (data.value("DateTime").toString().isEmpty()) {
+                data["DateTime"] = fileInfo.lastModified().toString("yyyy:MM:dd HH:mm:ss");
+                updated = true;
+            }
+            if (updated) {
+                m_db->saveExifData(filePath, fileInfo.size(), fileInfo.lastModified(), data);
+            }
+            return data;
         }
-        // Backfill DateTime with fs timestamp if it is empty
-        if (data.value("DateTime").toString().isEmpty()) {
-            data["DateTime"] = fileInfo.lastModified().toString("yyyy:MM:dd HH:mm:ss");
-            updated = true;
-        }
-        if (updated) {
-            m_db->saveExifData(filePath, fileInfo.size(), fileInfo.lastModified(), data);
-        }
-        return data;
     }
 
     // Check if it is a video file to avoid reading large files into memory

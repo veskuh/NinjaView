@@ -456,6 +456,44 @@ Item {
                 }
             }
         }
+
+        // Error Feedback overlay
+        Rectangle {
+            anchors.fill: parent
+            color: "#CC000000"
+            visible: mediaPlayer.error !== MediaPlayer.NoError && root.isCurrentVideo
+            z: 15
+
+            Column {
+                anchors.centerIn: parent
+                spacing: 12
+                width: Math.min(parent.width - 64, 320)
+
+                Text {
+                    text: "⚠️"
+                    font.pixelSize: 32
+                    anchors.horizontalCenter: parent.horizontalCenter
+                }
+
+                Text {
+                    text: "Playback Error"
+                    color: "white"
+                    font.bold: true
+                    font.pixelSize: 16
+                    anchors.horizontalCenter: parent.horizontalCenter
+                }
+
+                Text {
+                    text: mediaPlayer.errorString || "The video format is not supported or the file is corrupted."
+                    color: "#A0A0A0"
+                    font.pixelSize: 13
+                    wrapMode: Text.Wrap
+                    horizontalAlignment: Text.AlignHCenter
+                    width: parent.width
+                    anchors.horizontalCenter: parent.horizontalCenter
+                }
+            }
+        }
     }
 
     // Hidden cursor Area during fullscreen (Mac OS X viewer aesthetic)

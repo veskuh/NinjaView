@@ -26,14 +26,19 @@ QImage extractVideoFrameLinux(const QString &filePath)
     }
     
     QString escapedPath = filePath;
-    escapedPath.replace("'", "'\\''");
+    escapedPath.replace("'", "\\'");
     QString escapedTemp = tempFile;
-    escapedTemp.replace("'", "'\\''");
+    escapedTemp.replace("'", "\\'");
 
     QProcess process;
-    QString cmd = QString("gst-launch-1.0 filesrc location='%1' ! decodebin ! videoconvert ! jpegenc ! filesink location='%2'").arg(escapedPath, escapedTemp);
+    QStringList args;
+    args << "filesrc" << ("location='" + escapedPath + "'")
+         << "!" << "decodebin"
+         << "!" << "videoconvert"
+         << "!" << "jpegenc"
+         << "!" << "filesink" << ("location='" + escapedTemp + "'");
          
-    process.start("sh", QStringList() << "-c" << cmd);
+    process.start("gst-launch-1.0", args);
     
     bool success = false;
     for (int i = 0; i < 40; ++i) { // 2000ms max
