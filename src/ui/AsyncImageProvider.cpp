@@ -26,14 +26,9 @@ QImage extractVideoFrameLinux(const QString &filePath)
     }
     
     QProcess process;
-    QStringList args;
-    args << "filesrc location=" + filePath 
-         << "!" << "decodebin" 
-         << "!" << "videoconvert" 
-         << "!" << "jpegenc" 
-         << "!" << "filesink location=" + tempFile;
+    QString cmd = QString("gst-launch-1.0 filesrc location=\"%1\" ! decodebin ! videoconvert ! jpegenc ! filesink location=\"%2\"").arg(filePath, tempFile);
          
-    process.start("gst-launch-1.0", args);
+    process.start("sh", QStringList() << "-c" << cmd);
     
     bool success = false;
     for (int i = 0; i < 40; ++i) { // 2000ms max
