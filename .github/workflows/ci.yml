@@ -43,7 +43,7 @@ jobs:
           version: '6.8.3'
           host: 'linux'
           target: 'desktop'
-          modules: 'qt5compat qtshadertools qtimageformats'
+          modules: 'qt5compat qtshadertools qtimageformats qtmultimedia'
           cache: true
 
       - name: Configure CMake
@@ -81,7 +81,7 @@ jobs:
           version: '6.8.3'
           host: 'mac'
           target: 'desktop'
-          modules: 'qt5compat qtshadertools qtimageformats'
+          modules: 'qt5compat qtshadertools qtimageformats qtmultimedia'
           cache: true
 
       - name: Configure CMake
@@ -121,7 +121,7 @@ jobs:
           version: '6.8.3'
           host: 'mac'
           target: 'desktop'
-          modules: 'qt5compat qtshadertools qtimageformats'
+          modules: 'qt5compat qtshadertools qtimageformats qtmultimedia'
           cache: true
 
       - name: Configure CMake
@@ -170,7 +170,7 @@ jobs:
       - name: Build and Package DEB (Ubuntu 24.04)
         run: |
           docker run --rm -v $PWD:/workspace -w /workspace ubuntu:24.04 bash -c "
-            apt-get update && apt-get install -y cmake ninja-build build-essential qt6-base-dev qt6-declarative-dev qt6-5compat-dev qt6-shadertools-dev qt6-image-formats-plugins libgl1-mesa-dev libxkbcommon-dev git dpkg-dev file &&
+            apt-get update && apt-get install -y cmake ninja-build build-essential qt6-base-dev qt6-declarative-dev qt6-5compat-dev qt6-shadertools-dev qt6-image-formats-plugins qt6-multimedia-dev libgl1-mesa-dev libxkbcommon-dev git dpkg-dev file &&
             cmake -S . -B build-deb -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DNINJAVIEW_VERSION=${GITHUB_REF_NAME#v} -DNINJAVIEW_BUILD_ID=\$(git rev-parse --short HEAD) &&
             cmake --build build-deb &&
             cpack --config build-deb/CPackConfig.cmake -G DEB
@@ -182,7 +182,7 @@ jobs:
       - name: Build and Package RPM (Fedora 40)
         run: |
           docker run --rm -v $PWD:/workspace -w /workspace fedora:40 bash -c "
-            dnf install -y cmake ninja-build gcc-c++ qt6-qtbase-devel qt6-qtdeclarative-devel qt6-qt5compat-devel qt6-qtshadertools-devel qt6-qtimageformats mesa-libGL-devel libxkbcommon-devel git rpm-build file &&
+            dnf install -y cmake ninja-build gcc-c++ qt6-qtbase-devel qt6-qtdeclarative-devel qt6-qt5compat-devel qt6-qtshadertools-devel qt6-qtimageformats qt6-qtmultimedia-devel mesa-libGL-devel libxkbcommon-devel git rpm-build file &&
             cmake -S . -B build-rpm -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DNINJAVIEW_VERSION=${GITHUB_REF_NAME#v} -DNINJAVIEW_BUILD_ID=\$(git rev-parse --short HEAD) &&
             cmake --build build-rpm &&
             cpack --config build-rpm/CPackConfig.cmake -G RPM
