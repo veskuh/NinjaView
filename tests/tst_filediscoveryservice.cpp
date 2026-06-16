@@ -22,6 +22,7 @@ private slots:
     void testIsScanningProperty();
     void testFileUrlHandling();
     void testIndexingSignal();
+    void testBundleFiltering();
     void cleanupTestCase();
 
 private:
@@ -280,6 +281,72 @@ void TestFileDiscoveryService::testIndexingSignal()
 
     // indexingFinished should have been emitted after EXIF cache population
     QCOMPARE(indexingSpy.count(), 1);
+}
+
+void TestFileDiscoveryService::testBundleFiltering()
+{
+    QTemporaryDir tempDir;
+    QVERIFY(tempDir.isValid());
+
+    // Create a normal subfolder and some bundle folders
+    QDir dir(tempDir.path());
+    QVERIFY(dir.mkdir("normal_folder"));
+    QVERIFY(dir.mkdir("AppBundle.app"));
+    QVERIFY(dir.mkdir("MyFramework.framework"));
+    QVERIFY(dir.mkdir("Photos.photoslibrary"));
+
+    // Create an image inside the normal folder and one inside each bundle folder
+    QString normalImg = tempDir.path() + "/normal_folder/pic1.jpg";
+    QString appImg = tempDir.path() + "/AppBundle.app/pic2.jpg";
+    QString frameworkImg = tempDir.path() + "/MyFramework.framework/pic3.jpg";
+    QString photosImg = tempDir.path() + "/Photos.photoslibrary/pic4.jpg";
+
+    QFile f1(normalImg); QVERIFY(f1.open(QIODevice::WriteOnly)); f1.write("dummy"); f1.close();
+    QFile f2(appImg); QVERIFY(f2.open(QIODevice::WriteOnly)); f2.write("dummy"); f2.close();
+    QFile f3(frameworkImg); QVERIFY(f3.open(QIODevice::WriteOnly)); f3.write("dummy"); f3.close();
+    QFile f4(photosImg); QVERIFY(f4.open(QIODevice::WriteOnly)); f4.write("dummy"); f4.close();
+
+    FileDiscoveryService service;
+    ExifDatabase db;
+    db.init();
+    service.setDatabase(&db);
+
+    // Test non-recursive: bundles should NOT be reported as folders
+    {
+        QSignalSpy imgSpy(&service, &FileDiscoveryService::imagesDiscovered);
+        QSignalSpy folderSpy(&service, &FileDiscoveryService::foldersDiscovered);
+        QSignalSpy finishedSpy(&service, &FileDiscoveryService::scanFinished);
+
+        service.scanDirectory(tempDir.path(), false);
+        QVERIFY(finishedSpy.wait(5000));
+
+        // Folders should contain only normal_folder
+        QCOMPARE(folderSpy.count(), 1);
+        QStringList folderList = folderSpy.takeFirst().at(0).toStringList();
+        QCOMPARE(folderList.size(), 1);
+        QVERIFY(folderList.contains(tempDir.path() + "/normal_folder"));
+        QVERIFY(!folderList.contains(tempDir.path() + "/AppBundle.app"));
+        QVERIFY(!folderList.contains(tempDir.path() + "/MyFramework.framework"));
+        QVERIFY(!folderList.contains(tempDir.path() + "/Photos.photoslibrary"));
+    }
+
+    // Test recursive: images inside bundles should NOT be discovered
+    {
+        QSignalSpy imgSpy(&service, &FileDiscoveryService::imagesDiscovered);
+        QSignalSpy finishedSpy(&service, &FileDiscoveryService::scanFinished);
+
+        service.scanDirectory(tempDir.path(), true);
+        QVERIFY(finishedSpy.wait(5000));
+
+        // Images should contain only normalImg
+        QCOMPARE(imgSpy.count(), 1);
+        QStringList imgList = imgSpy.takeFirst().at(0).toStringList();
+        QCOMPARE(imgList.size(), 1);
+        QVERIFY(imgList.contains(normalImg));
+        QVERIFY(!imgList.contains(appImg));
+        QVERIFY(!imgList.contains(frameworkImg));
+        QVERIFY(!imgList.contains(photosImg));
+    }
 }
 
 QTEST_MAIN(TestFileDiscoveryService)

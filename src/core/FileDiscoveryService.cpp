@@ -62,15 +62,43 @@ void FileDiscoveryService::doScan(const QString &path, bool recursive, quint64 s
         filters << "*.jpg" << "*.jpeg" << "*.png" << "*.bmp" << "*.webp" << "*.mp4" << "*.mov"
                 << "*.JPG" << "*.JPEG" << "*.PNG" << "*.BMP" << "*.WEBP" << "*.MP4" << "*.MOV";
 
+        static const QStringList ignoredSuffixes = {
+            ".app", ".framework", ".plugin", ".bundle",
+            ".xcassets", ".xcodeproj", ".xcworkspace",
+            ".photoslibrary", ".photolibrary", ".aplibrary", ".lrweb"
+        };
+
         if (recursive) {
             QDirIterator it(dirPath, filters, QDir::Files | QDir::NoDotAndDotDot, QDirIterator::Subdirectories);
             while (it.hasNext()) {
-                paths << it.next();
+                QString filePath = it.next();
+                bool shouldIgnore = false;
+                for (const QString &suffix : ignoredSuffixes) {
+                    if (filePath.contains(suffix + "/", Qt::CaseInsensitive)) {
+                        shouldIgnore = true;
+                        break;
+                    }
+                }
+                if (shouldIgnore) {
+                    continue;
+                }
+                paths << filePath;
             }
         } else {
             // Find subdirectories
             QFileInfoList dirList = dir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
             for (const QFileInfo &dirInfo : dirList) {
+                QString dirName = dirInfo.fileName();
+                bool shouldIgnore = false;
+                for (const QString &suffix : ignoredSuffixes) {
+                    if (dirName.endsWith(suffix, Qt::CaseInsensitive)) {
+                        shouldIgnore = true;
+                        break;
+                    }
+                }
+                if (shouldIgnore) {
+                    continue;
+                }
                 folderPaths << dirInfo.absoluteFilePath();
             }
 
