@@ -54,6 +54,10 @@ Rectangle {
                     value: root.name
                 },
                 {
+                    label: "Format",
+                    value: root.exifData.IsVideo ? root.exifData.Model : ""
+                },
+                {
                     label: "Dimensions",
                     value: root.exifData.Dimensions
                 },
@@ -62,16 +66,20 @@ Rectangle {
                     value: root.exifData.FileSize
                 },
                 {
+                    label: "Duration",
+                    value: root.exifData.Duration
+                },
+                {
                     label: "Make",
-                    value: root.exifData.Make
+                    value: root.exifData.IsVideo ? "" : root.exifData.Make
                 },
                 {
                     label: "Model",
-                    value: root.exifData.Model
+                    value: root.exifData.IsVideo ? "" : root.exifData.Model
                 },
                 {
                     label: "Lens",
-                    value: root.exifData.Lens
+                    value: root.exifData.IsVideo ? "" : root.exifData.Lens
                 },
                 {
                     label: "Exposure",

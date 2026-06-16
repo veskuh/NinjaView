@@ -13,6 +13,7 @@ class GalleryFilterProxyModel : public QSortFilterProxyModel
     Q_PROPERTY(QString cameraFilter READ cameraFilter WRITE setCameraFilter NOTIFY cameraFilterChanged)
     Q_PROPERTY(QString currentFolderPath READ currentFolderPath WRITE setCurrentFolderPath NOTIFY currentFolderPathChanged)
     Q_PROPERTY(QString searchQuery READ searchQuery WRITE setSearchQuery NOTIFY searchQueryChanged)
+    Q_PROPERTY(QString mediaTypeFilter READ mediaTypeFilter WRITE setMediaTypeFilter NOTIFY mediaTypeFilterChanged)
     Q_PROPERTY(int count READ rowCount NOTIFY countChanged)
 
 public:
@@ -29,6 +30,9 @@ public:
 
     QString searchQuery() const { return m_searchQuery; }
     void setSearchQuery(const QString &query);
+
+    QString mediaTypeFilter() const { return m_mediaTypeFilter; }
+    void setMediaTypeFilter(const QString &mediaType);
 
     void setDatabase(ExifDatabase *db) { m_db = db; }
 
@@ -49,6 +53,7 @@ signals:
     void cameraFilterChanged();
     void currentFolderPathChanged();
     void searchQueryChanged();
+    void mediaTypeFilterChanged();
     void countChanged();
 
 protected:
@@ -59,6 +64,7 @@ private:
     QString m_cameraFilter{""};
     QString m_currentFolderPath{""};
     QString m_searchQuery{""};
+    QString m_mediaTypeFilter{"All"};
     ExifDatabase *m_db{nullptr};
 
     bool matchDate(const QDateTime &dateTime, const QString &type) const;

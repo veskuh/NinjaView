@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
 import QtQuick.Dialogs
 import QtCore
@@ -29,6 +30,10 @@ Item {
         filterScopeBar.currentIndex = 0;
         galleryModel.filterType = "All";
         galleryModel.cameraFilter = "";
+        if (typeof mediaTypeFilter !== "undefined" && mediaTypeFilter) {
+            mediaTypeFilter.activeIndex = 0;
+        }
+        galleryModel.mediaTypeFilter = "All";
         panel.updateFilters();
     }
 
@@ -209,12 +214,119 @@ Item {
         }
     }
 
+    // Background extension for the scope bar area on the right to ensure a continuous bar
+    Rectangle {
+        id: scopeBarExtension
+        anchors {
+            top: parent.top
+            left: filterScopeBar.right
+            right: parent.right
+        }
+        height: 24
+        color: Theme.isDarkMode ? "#262626" : "#E1E1E1"
+        visible: currentFolderPath !== ""
+
+        // 1px solid bottom border to match the scope bar
+        Rectangle {
+            anchors.bottom: parent.bottom
+            anchors.left: parent.left
+            anchors.right: parent.right
+            height: 1
+            color: Theme.isDarkMode ? "#121212" : "#B0B0B0"
+        }
+    }
+
+    // Segmented Media Type Control on the right side of the scope bar
+    Rectangle {
+        id: mediaTypeFilter
+        anchors {
+            right: parent.right
+            top: parent.top
+            rightMargin: 8
+            topMargin: 3
+        }
+        width: segmentRow.implicitWidth + 4
+        height: 18
+        radius: 4
+        color: Theme.isDarkMode ? "#262626" : "#E1E1E1"
+        border.color: Theme.isDarkMode ? "#3F3F3F" : "#D0D0D0"
+        border.width: 1
+        visible: currentFolderPath !== ""
+
+        property int activeIndex: 0 // 0: All, 1: Photos, 2: Videos
+
+        Row {
+            id: segmentRow
+            anchors.centerIn: parent
+            spacing: 1
+
+            Repeater {
+                model: [qsTr("All"), qsTr("Photos"), qsTr("Videos")]
+                delegate: Basic.Button {
+                    id: segButton
+                    required property string modelData
+                    required property int index
+
+                    implicitHeight: 14
+                    implicitWidth: segText.implicitWidth + 12
+                    padding: 0
+
+                    Gradient {
+                        id: selectionGradient
+                        GradientStop { position: 0.0; color: Theme.segmentedSelectionGradTop }
+                        GradientStop { position: 1.0; color: Theme.segmentedSelectionGradBottom }
+                    }
+
+                    background: Rectangle {
+                        radius: 3
+                        gradient: mediaTypeFilter.activeIndex === index ? selectionGradient : null
+                        color: {
+                            if (mediaTypeFilter.activeIndex === index) {
+                                return "transparent"
+                            }
+                            if (segButton.hovered) {
+                                return Theme.isDarkMode ? "#3D3D3D" : "#E5E5E5"
+                            }
+                            return "transparent"
+                        }
+                        border.color: mediaTypeFilter.activeIndex === index ? Theme.buttonBorder : "transparent"
+                        border.width: mediaTypeFilter.activeIndex === index ? 1 : 0
+                    }
+
+                    contentItem: Text {
+                        id: segText
+                        text: modelData
+                        font.family: Theme.defaultFont.family
+                        font.pixelSize: 10
+                        font.weight: mediaTypeFilter.activeIndex === index ? Font.Bold : Font.Normal
+                        color: Theme.primaryText
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                        renderType: Text.NativeRendering
+                    }
+
+                    onClicked: {
+                        mediaTypeFilter.activeIndex = index
+                        if (index === 0) {
+                            galleryModel.mediaTypeFilter = "All"
+                        } else if (index === 1) {
+                            galleryModel.mediaTypeFilter = "Photos"
+                        } else if (index === 2) {
+                            galleryModel.mediaTypeFilter = "Videos"
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     KaakaoScopeBar {
         id: filterScopeBar
         objectName: "filterScopeBar"
         anchors.top: parent.top
         anchors.left: parent.left
-        anchors.right: parent.right
+        anchors.right: mediaTypeFilter.left
+        anchors.rightMargin: 10
         height: visible ? 24 : 0
         visible: currentFolderPath !== ""
         label: qsTr("Filter:")
@@ -336,8 +448,14 @@ Item {
                 spacing: Theme.paddingSmall
 
                 Item {
+                    id: previewContainer
                     width: parent.width
                     height: width
+                    scale: gridDelegate.hovered ? 1.03 : 1.0
+                    opacity: gridDelegate.hovered ? 1.0 : 0.95
+                    
+                    Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutQuad } }
+                    Behavior on opacity { NumberAnimation { duration: 150 } }
                     
                     Rectangle {
                         anchors.fill: parent
@@ -383,7 +501,7 @@ Item {
                         
                         // Query EXIF database cache for duration
                         readonly property var exif: visible && typeof exifDatabase !== "undefined" && exifDatabase ? exifDatabase.getExifData(model.rawPath) : null
-                        readonly property string durationText: (exif && exif.Exposure) ? exif.Exposure : ""
+                        readonly property string durationText: (exif && exif.Duration) ? exif.Duration : ""
                         readonly property string formatText: {
                             if (model.isFolder) return ""
                             let parts = model.rawPath.split('.')

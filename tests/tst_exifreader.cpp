@@ -18,6 +18,7 @@ private slots:
     void testInvalidFile();
     void testUnreadableFile();
     void testRealImages();
+    void testVideoParsing();
     void testWithDatabaseSaveAndCacheHit();
     void testExifReaderExtraCoverage();
     void cleanupTestCase();
@@ -140,6 +141,19 @@ void TestExifReader::testRealImages()
         qDebug() << "  Model:" << data["Model"].toString();
         qDebug() << "  Lens:" << data["Lens"].toString();
     }
+}
+
+void TestExifReader::testVideoParsing()
+{
+    ExifReader reader;
+    QVariantMap data = reader.getExifData("data/test.mp4");
+    QVERIFY2(!data.isEmpty(), "test.mp4 EXIF data should not be empty");
+    QCOMPARE(data["IsVideo"].toBool(), true);
+    QCOMPARE(data["Dimensions"].toString(), "160x120");
+    QCOMPARE(data["Duration"].toString(), "1s");
+    QCOMPARE(data["Model"].toString(), "MPEG-4 Video (ISOM)");
+    QCOMPARE(data["Make"].toString(), "Video File");
+    QVERIFY(data.contains("DateTime"));
 }
 
 void TestExifReader::testWithDatabaseSaveAndCacheHit()

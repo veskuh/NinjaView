@@ -39,6 +39,7 @@ void TestExifDatabase::testDatabaseOperations()
     exif["Aperture"] = "f/2.8";
     exif["ISO"] = 400;
     exif["DateTime"] = "2026:05:30 12:00:00";
+    exif["Duration"] = "5s";
 
     QVERIFY(db.saveExifData(filePath, fileSize, lastModified, exif));
 
@@ -60,6 +61,7 @@ void TestExifDatabase::testDatabaseOperations()
     QCOMPARE(retrieved.value("Aperture").toString(), QString("f/2.8"));
     QCOMPARE(retrieved.value("ISO").toInt(), 400);
     QCOMPARE(retrieved.value("DateTime").toString(), QString("2026:05:30 12:00:00"));
+    QCOMPARE(retrieved.value("Duration").toString(), QString("5s"));
 
     // Test favorite, notes, tags
     QSignalSpy favSpy(&db, &ExifDatabase::favoritesChanged);

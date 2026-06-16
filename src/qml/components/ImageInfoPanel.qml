@@ -158,11 +158,13 @@ Item {
                 // Read-only Metadata List
                 Repeater {
                     model: [
-                        { label: "Make", value: panel.exifData.Make },
-                        { label: "Model", value: panel.exifData.Model },
-                        { label: "Lens", value: panel.exifData.Lens },
+                        { label: "Format", value: panel.exifData.IsVideo ? panel.exifData.Model : "" },
+                        { label: "Make", value: panel.exifData.IsVideo ? "" : panel.exifData.Make },
+                        { label: "Model", value: panel.exifData.IsVideo ? "" : panel.exifData.Model },
+                        { label: "Lens", value: panel.exifData.IsVideo ? "" : panel.exifData.Lens },
                         { label: "Dimensions", value: panel.exifData.Dimensions },
                         { label: "Size", value: panel.exifData.FileSize },
+                        { label: "Duration", value: panel.exifData.Duration },
                         { label: "Exposure", value: panel.exifData.Exposure },
                         { label: "Aperture", value: panel.exifData.Aperture },
                         { label: "Focal Length", value: panel.exifData.FocalLength },

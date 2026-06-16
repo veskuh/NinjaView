@@ -281,6 +281,22 @@ void TestGalleryFilterProxyModel::testVideoFiltering()
     QCOMPARE(proxyModel.rowCount(), 2);
     QCOMPARE(proxyModel.getRawPath(1), fileJpg);
     QVERIFY(!proxyModel.isVideo(1));
+
+    // Test mediaTypeFilter
+    proxyModel.setFilterType("All");
+    proxyModel.setMediaTypeFilter("Photos");
+    // Should accept folder and photo.jpg (count = 2)
+    QCOMPARE(proxyModel.rowCount(), 2);
+    QCOMPARE(proxyModel.getRawPath(1), fileJpg);
+
+    proxyModel.setMediaTypeFilter("Videos");
+    // Should accept folder, video.mp4 and clip.mov (count = 3)
+    QCOMPARE(proxyModel.rowCount(), 3);
+    QCOMPARE(proxyModel.getRawPath(1), fileMp4);
+    QCOMPARE(proxyModel.getRawPath(2), fileMov);
+
+    proxyModel.setMediaTypeFilter("All");
+    QCOMPARE(proxyModel.rowCount(), 4);
 }
 
 QTEST_MAIN(TestGalleryFilterProxyModel)

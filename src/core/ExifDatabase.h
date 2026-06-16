@@ -15,7 +15,7 @@ public:
     bool init();
 
     bool isCached(const QString &filePath, qint64 fileSize, const QDateTime &lastModified);
-    QVariantMap getExifData(const QString &filePath);
+    Q_INVOKABLE QVariantMap getExifData(const QString &filePath);
     bool saveExifData(const QString &filePath, qint64 fileSize, const QDateTime &lastModified, const QVariantMap &exifData);
     Q_INVOKABLE QStringList getUniqueCamerasForFolder(const QString &folderPath);
     Q_INVOKABLE QVariantMap getAvailableFiltersForFolder(const QString &folderPath);

@@ -54,6 +54,15 @@ void GalleryFilterProxyModel::setSearchQuery(const QString &query)
     }
 }
 
+void GalleryFilterProxyModel::setMediaTypeFilter(const QString &mediaType)
+{
+    if (m_mediaTypeFilter != mediaType) {
+        m_mediaTypeFilter = mediaType;
+        emit mediaTypeFilterChanged();
+        invalidateFilter();
+    }
+}
+
 void GalleryFilterProxyModel::clear()
 {
     auto srcModel = qobject_cast<GalleryListModel*>(sourceModel());
@@ -141,6 +150,17 @@ bool GalleryFilterProxyModel::filterAcceptsRow(int source_row, const QModelIndex
             return srcModel->getFileName(source_row).contains(m_searchQuery, Qt::CaseInsensitive);
         }
         return true;
+    }
+
+    // Apply mediaTypeFilter
+    if (m_mediaTypeFilter != "All") {
+        bool isVideoFile = srcModel->isVideo(source_row);
+        if (m_mediaTypeFilter == "Photos" && isVideoFile) {
+            return false;
+        }
+        if (m_mediaTypeFilter == "Videos" && !isVideoFile) {
+            return false;
+        }
     }
 
     QString filePath = srcModel->getRawPath(source_row);

@@ -67,14 +67,15 @@ bool ExifDatabase::init()
                          "aperture TEXT, "
                          "iso INTEGER, "
                          "datetime TEXT, "
-                         "dimensions TEXT DEFAULT ''"
+                         "dimensions TEXT DEFAULT '', "
+                         "duration TEXT DEFAULT ''"
                          ")");
     if (!ok) {
         qWarning() << "ExifDatabase: Schema creation failed -" << query.lastError().text();
         return false;
     }
 
-    // Check and add missing columns dynamically: favorite, notes, tags, dimensions
+    // Check and add missing columns dynamically: favorite, notes, tags, dimensions, duration
     if (query.exec("PRAGMA table_info(exif_cache)")) {
         QSet<QString> columns;
         while (query.next()) {
@@ -103,6 +104,11 @@ bool ExifDatabase::init()
         if (!columns.contains("focal_length")) {
             if (!query.exec("ALTER TABLE exif_cache ADD COLUMN focal_length TEXT DEFAULT ''")) {
                 qWarning() << "ExifDatabase: Failed to add focal_length column -" << query.lastError().text();
+            }
+        }
+        if (!columns.contains("duration")) {
+            if (!query.exec("ALTER TABLE exif_cache ADD COLUMN duration TEXT DEFAULT ''")) {
+                qWarning() << "ExifDatabase: Failed to add duration column -" << query.lastError().text();
             }
         }
     } else {
@@ -139,7 +145,7 @@ QVariantMap ExifDatabase::getExifData(const QString &filePath)
     if (!db.isOpen()) return data;
 
     QSqlQuery query(db);
-    query.prepare("SELECT make, model, lens, exposure, aperture, iso, datetime, favorite, notes, tags, dimensions, file_size, focal_length FROM exif_cache WHERE file_path = :path");
+    query.prepare("SELECT make, model, lens, exposure, aperture, iso, datetime, favorite, notes, tags, dimensions, file_size, focal_length, duration FROM exif_cache WHERE file_path = :path");
     query.bindValue(":path", filePath);
 
     if (query.exec() && query.next()) {
@@ -155,6 +161,7 @@ QVariantMap ExifDatabase::getExifData(const QString &filePath)
         data["Tags"] = query.value(9).toString();
         data["Dimensions"] = query.value(10).toString();
         data["FocalLength"] = query.value(12).toString();
+        data["Duration"] = query.value(13).toString();
         
         qint64 sizeInBytes = query.value(11).toLongLong();
         QString sizeStr;
@@ -192,13 +199,13 @@ bool ExifDatabase::saveExifData(const QString &filePath, qint64 fileSize, const 
                       "make = :make, model = :model, lens = :lens, "
                       "exposure = :exposure, aperture = :aperture, "
                       "iso = :iso, datetime = :datetime, dimensions = :dimensions, "
-                      "focal_length = :focal_length "
+                      "focal_length = :focal_length, duration = :duration "
                       "WHERE file_path = :path");
     } else {
         // Insert new record with defaults for favorite/notes/tags
         query.prepare("INSERT INTO exif_cache "
-                      "(file_path, file_size, last_modified, make, model, lens, exposure, aperture, iso, datetime, favorite, notes, tags, dimensions, focal_length) "
-                      "VALUES (:path, :size, :modified, :make, :model, :lens, :exposure, :aperture, :iso, :datetime, 0, '', '', :dimensions, :focal_length)");
+                      "(file_path, file_size, last_modified, make, model, lens, exposure, aperture, iso, datetime, favorite, notes, tags, dimensions, focal_length, duration) "
+                      "VALUES (:path, :size, :modified, :make, :model, :lens, :exposure, :aperture, :iso, :datetime, 0, '', '', :dimensions, :focal_length, :duration)");
     }
 
     query.bindValue(":path", filePath);
@@ -213,6 +220,7 @@ bool ExifDatabase::saveExifData(const QString &filePath, qint64 fileSize, const 
     query.bindValue(":datetime", exifData.value("DateTime").toString());
     query.bindValue(":dimensions", exifData.value("Dimensions").toString());
     query.bindValue(":focal_length", exifData.value("FocalLength").toString());
+    query.bindValue(":duration", exifData.value("Duration").toString());
 
     bool ok = query.exec();
     if (!ok) {
@@ -415,8 +423,8 @@ bool ExifDatabase::ensureRecordExists(const QString &filePath, QSqlQuery &query)
     // Doesn't exist, retrieve filesystem info and create a basic record
     QFileInfo fileInfo(filePath);
     query.prepare("INSERT INTO exif_cache "
-                  "(file_path, file_size, last_modified, make, model, lens, exposure, aperture, iso, datetime, favorite, notes, tags) "
-                  "VALUES (:path, :size, :modified, '', '', '', '', '', 0, '', 0, '', '')");
+                  "(file_path, file_size, last_modified, make, model, lens, exposure, aperture, iso, datetime, favorite, notes, tags, dimensions, focal_length, duration) "
+                  "VALUES (:path, :size, :modified, '', '', '', '', '', 0, '', 0, '', '', '', '', '')");
     query.bindValue(":path", filePath);
     query.bindValue(":size", fileInfo.exists() ? fileInfo.size() : 0);
     query.bindValue(":modified", fileInfo.exists() ? fileInfo.lastModified().toString(Qt::ISODate) : QDateTime::currentDateTime().toString(Qt::ISODate));
