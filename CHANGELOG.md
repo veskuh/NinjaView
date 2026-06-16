@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Updated the Kaakao submodule to integrate the latest UI component updates.
+- Added automatic filtering to ignore macOS system/development bundles, Xcode project directories, and Photos/Lightroom libraries (such as `.app`, `.framework`, `.plugin`, `.bundle`, `.xcassets`, `.xcodeproj`, `.xcworkspace`, `.photoslibrary`, and others) from folder and image scans.
+- Extended the scope bar header background and border continuously across the full window width, and aligned the custom media type filter control's background with it.
+
+### Fixed
+- Fixed text visibility contrast for the custom segmented control in light theme by matching its active styling and text color with `KaakaoSegmentedControl`'s design tokens.
+- Fixed Linux GStreamer thumbnail extraction pipeline crashes caused by command-line path parsing limitations, wrapping location parameters in double quotes via idiomatic `QString::arg()`.
+
 ## [0.6.1] - 2026-06-14
 
 ### Added

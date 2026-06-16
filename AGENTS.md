@@ -37,10 +37,11 @@ Testing:
   ```
 
 Features:
-- Immersive Fullscreen Preview (double-click image).
-- Keyboard navigation (Arrows, Escape).
-- Hidden mouse cursor in fullscreen.
-- Asynchronous image decoding with caching.
+- Native support for images and videos (MP4 and MOV formats).
+- Immersive Fullscreen Preview (double-click image/video) with keyboard navigation and fullscreen player controls.
+- Smart fullscreen interactions (video autoplay on navigation, automatic cursor hiding on inactivity).
+- Asynchronous image decoding, caching, and EXIF metadata extraction.
+- Automatic filtering to ignore system/development bundles and media libraries (e.g., `.app`, `.framework`, `.plugin`, `.bundle`, `.xcassets`, `.xcodeproj`, `.xcworkspace`, `.photoslibrary`, `.photolibrary`, `.aplibrary`, `.lrweb`) during folder discovery.
 - Classic Mac OS X aesthetic via Kaakao.
 
 Packaging:

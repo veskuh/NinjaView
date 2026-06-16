@@ -10,6 +10,7 @@ NinjaView is a simple C++/Qt6 image and video viewer designed for previewing fil
 - Support for images and video formats (JPEG, WebP, MP4, and MOV).
 - Separate "Pictures" and "Videos" sidebar library navigation.
 - Category scope bar filters for both pictures and videos.
+- Automatic filtering to ignore macOS system/development bundles, Xcode project directories, and Photos/Lightroom libraries (such as `.app`, `.framework`, `.plugin`, `.bundle`, `.xcassets`, `.xcodeproj`, `.xcworkspace`, `.photoslibrary`, `.photolibrary`, `.aplibrary`, `.lrweb`) to keep the media gallery clean.
 - Double-click any file to enter fullscreen preview mode.
 - Interactive video playback controls: play/pause button overlay, click-to-toggle play/pause.
 - Smart fullscreen behavior:
