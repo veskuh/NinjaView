@@ -29,6 +29,7 @@ qt_add_qml_module(NinjaViewLib
         qml/views/NinjaWindow.qml
         qml/views/PreviewOverlay.qml
         qml/components/ZoomableImage.qml
+        qml/components/InlinePreviewPanel.qml
         qml/components/SidebarPanel.qml
         qml/components/SidebarModel.qml
         qml/components/NinjaToolBar.qml

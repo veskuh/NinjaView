@@ -62,24 +62,28 @@ TestCase {
         verify(!mainApp.showMainInfo, "Info panel should be hidden after second toggle")
     }
 
-    function test_space_opens_preview() {
-        // Need to find the grid and overlay
+    function test_double_click_opens_preview() {
         var grid = findChild(mainApp, "galleryGrid")
         var overlay = findChild(mainApp, "previewOverlay")
-        var shortcut = findChild(mainApp, "galleryShortcut")
+        var galleryPanel = findChild(mainApp, "galleryPanel")
         
         verify(grid !== null, "Grid should be found")
         verify(overlay !== null, "Overlay should be found")
-        verify(shortcut !== null, "Shortcut should be found")
+        verify(galleryPanel !== null, "GalleryPanel should be found")
         
         overlay.visible = false
         
         // Mock a current index and focus the internal gridView
+        rawGalleryModel.clear()
+        rawGalleryModel.addImages(["/tmp/test_double.jpg"])
         grid.currentIndex = 0
-        grid.gridView.forceActiveFocus()
+        wait(100)
         
-        shortcut.activated()
-        tryVerify(function() { return overlay.visible }, 2000, "Shortcut should open overlay")
+        galleryPanel.doubleClicked(0)
+        tryVerify(function() { return overlay.visible }, 2000, "Double-click should open overlay")
+        
+        overlay.visible = false
+        rawGalleryModel.clear()
     }
 
     function test_breadcrumb_logic() {
@@ -336,6 +340,38 @@ TestCase {
         wait(100)
         compare(mainApp.showMainInfo, false, "showMainInfo should be false after second click")
         
+        // Cleanup
+        rawGalleryModel.clear()
+    }
+
+    function test_space_opens_inline_preview() {
+        var grid = findChild(mainApp, "galleryGrid")
+        var shortcut = findChild(mainApp, "galleryShortcut")
+        var inlinePanel = findChild(mainApp, "inlinePreviewPanel")
+
+        verify(grid !== null, "Grid should be found")
+        verify(shortcut !== null, "Shortcut should be found")
+        verify(inlinePanel !== null, "InlinePreviewPanel should be found")
+
+        rawGalleryModel.clear()
+        mainApp.inlinePreviewActive = false
+
+        // 1. Add mock image and select it
+        rawGalleryModel.addImages(["/tmp/test_inline.jpg"])
+        grid.currentIndex = 0
+        grid.gridView.forceActiveFocus()
+        wait(100)
+
+        // 2. Press Space to activate inline preview
+        shortcut.activated()
+        tryVerify(function() { return mainApp.inlinePreviewActive }, 2000, "Shortcut should set inlinePreviewActive to true")
+        verify(inlinePanel.visible, "InlinePreviewPanel should be visible")
+
+        // 3. Request close (simulate Esc/Space key closure)
+        inlinePanel.closeRequested()
+        tryVerify(function() { return !mainApp.inlinePreviewActive }, 2000, "Close requested should set inlinePreviewActive to false")
+        verify(!inlinePanel.visible, "InlinePreviewPanel should be hidden again")
+
         // Cleanup
         rawGalleryModel.clear()
     }

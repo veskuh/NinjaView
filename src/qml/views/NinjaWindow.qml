@@ -25,6 +25,7 @@ KaakaoWindow {
     property bool loading: false
     property var folderSelections: ({})
     property var rotationTimestamps: ({})
+    property bool inlinePreviewActive: false
 
     function getImageUrl(filePath) {
         if (!filePath) return "";
@@ -76,11 +77,11 @@ KaakaoWindow {
         id: galleryShortcut
         objectName: "galleryShortcut"
         sequences: ["Space", "Return", "Enter"]
-        enabled: !previewOverlay.visible && galleryPanel.gridView.activeFocus
+        enabled: !previewOverlay.visible && !root.inlinePreviewActive && galleryPanel.gridView.activeFocus
         onActivated: {
-            if (galleryPanel.currentIndex >= 0) {
-                previewOverlay.currentIndex = galleryPanel.currentIndex
-                previewOverlay.visible = true
+            if (galleryPanel.currentIndex >= 0 && !galleryModel.isFolder(galleryPanel.currentIndex)) {
+                root.inlinePreviewActive = true
+                inlinePreviewPanel.forceActiveFocus()
             }
         }
     }
@@ -406,9 +407,9 @@ KaakaoWindow {
                     
                     currentFolderDescription: root.currentFolderDescription
                     currentTitle: root.currentTitle
-                    previewOverlayCurrentIndex: previewOverlay.currentIndex
+                    previewOverlayCurrentIndex: root.inlinePreviewActive ? galleryPanel.currentIndex : previewOverlay.currentIndex
                     galleryPanelCurrentIndex: galleryPanel.currentIndex
-                    previewOverlayVisible: previewOverlay.visible
+                    previewOverlayVisible: previewOverlay.visible || root.inlinePreviewActive
                     showMainInfo: root.showMainInfo
                     thumbnailSize: appSettings.thumbnailSize
                     
@@ -429,8 +430,10 @@ KaakaoWindow {
 
                 GalleryPanel {
                     id: galleryPanel
+                    objectName: "galleryPanel"
                     Layout.fillWidth: true
                     Layout.fillHeight: true
+                    visible: !root.inlinePreviewActive
 
                     confirmDeletions: appSettings.confirmDeletions
                     loading: root.loading
@@ -458,6 +461,26 @@ KaakaoWindow {
                         galleryModel.clear()
                         root.loading = true
                         discoveryService.scanDirectory(localPath, false)
+                    }
+                }
+
+                InlinePreviewPanel {
+                    id: inlinePreviewPanel
+                    objectName: "inlinePreviewPanel"
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    visible: root.inlinePreviewActive
+
+                    model: galleryModel
+                    currentIndex: galleryPanel.currentIndex
+                    getImageUrl: root.getImageUrl
+
+                    onCloseRequested: {
+                        root.inlinePreviewActive = false
+                        galleryPanel.gridView.forceActiveFocus()
+                    }
+                    onRequestIndexChange: (index) => {
+                        galleryPanel.currentIndex = index
                     }
                 }
             }

@@ -62,6 +62,12 @@ Item {
             // Try C++ model helper first
             if (typeof m.getRawPath === 'function') {
                 path = m.getRawPath(idx)
+            } else if (typeof m.get === 'function') {
+                // Fallback for QML ListModel
+                let item = m.get(idx)
+                if (item && item.rawPath !== undefined && item.rawPath !== null) {
+                    path = item.rawPath.toString()
+                }
             } else if (typeof m.index === 'function' && typeof m.data === 'function') {
                 // Fallback for standard QAbstractItemModel
                 let qidx = m.index(idx, 0)
@@ -70,12 +76,6 @@ Item {
                     if (data !== undefined && data !== null) {
                         path = data.toString()
                     }
-                }
-            } else if (typeof m.get === 'function') {
-                // Fallback for QML ListModel
-                let item = m.get(idx)
-                if (item && item.rawPath !== undefined && item.rawPath !== null) {
-                    path = item.rawPath.toString()
                 }
             }
         } catch (e) {
@@ -335,9 +335,10 @@ Item {
 
         MediaPlayer {
             id: mediaPlayer
+            objectName: "mediaPlayer"
             audioOutput: AudioOutput {}
             videoOutput: videoOutput
-            source: (root.currentImagePath && root.isCurrentVideo) ? "file://" + root.currentImagePath : ""
+            source: (root.visible && !root._isFadingOut && root.currentImagePath && root.isCurrentVideo) ? "file://" + root.currentImagePath : ""
             loops: MediaPlayer.Infinite
 
             onSourceChanged: {
