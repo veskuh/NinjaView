@@ -437,9 +437,14 @@ Item {
                     Layout.fillWidth: true
                     from: 0
                     to: mediaPlayer.duration
-                    value: mediaPlayer.position
                     focusPolicy: Qt.NoFocus
                     onMoved: mediaPlayer.position = value
+
+                    Binding {
+                        target: seekBar
+                        property: "value"
+                        value: mediaPlayer.position
+                    }
                 }
                 
                 KaakaoLabel {

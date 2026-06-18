@@ -144,11 +144,16 @@ KaakaoToolBar {
                 id: zoomSlider
                 from: 200
                 to: 600
-                value: toolbar.thumbnailSize
                 implicitWidth: 100
                 leftPadding: 4
                 rightPadding: 4
                 onMoved: toolbar.thumbnailSize = value
+
+                Binding {
+                    target: zoomSlider
+                    property: "value"
+                    value: toolbar.thumbnailSize
+                }
             }
 
             Text {

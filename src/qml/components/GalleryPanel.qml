@@ -486,6 +486,35 @@ Item {
                         visible: model.isFolder || thumbnail.status !== Image.Ready
                     }
 
+                    Rectangle {
+                        id: skeletonOverlay
+                        anchors.fill: parent
+                        color: Theme.isDarkMode ? "#3D3D3D" : "#E0E0E0"
+                        radius: 4
+                        visible: !model.isFolder && thumbnail.status === Image.Loading
+
+                        SequentialAnimation {
+                            running: skeletonOverlay.visible
+                            loops: Animation.Infinite
+                            NumberAnimation {
+                                target: skeletonOverlay
+                                property: "opacity"
+                                from: 0.3
+                                to: 0.8
+                                duration: 800
+                                easing.type: Easing.InOutQuad
+                            }
+                            NumberAnimation {
+                                target: skeletonOverlay
+                                property: "opacity"
+                                from: 0.8
+                                to: 0.3
+                                duration: 800
+                                easing.type: Easing.InOutQuad
+                            }
+                        }
+                    }
+
                     Text {
                         anchors.centerIn: parent
                         text: "📁"
@@ -503,6 +532,14 @@ Item {
                         sourceSize: Qt.size(600, 600)
                         fillMode: Image.PreserveAspectFit
                         asynchronous: true
+                        opacity: (status === Image.Ready) ? 1.0 : 0.0
+                        Behavior on opacity {
+                            enabled: thumbnail.status === Image.Ready
+                            NumberAnimation {
+                                duration: 150
+                                easing.type: Easing.OutQuad
+                            }
+                        }
                         onStatusChanged: {
                             if (status === Image.Error && !model.isFolder) {
                                 console.error("Failed to load thumbnail for:", model.rawPath)
