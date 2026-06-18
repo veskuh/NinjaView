@@ -1,0 +1,118 @@
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+import Kaakao
+
+pragma ComponentBehavior: Bound
+
+KaakaoWindow {
+    id: root
+    
+    width: 750
+    height: 550
+    minimumWidth: width
+    maximumWidth: width
+    minimumHeight: height
+    maximumHeight: height
+    
+    title: qsTr("User Guide")
+    
+    ColumnLayout {
+        anchors {
+            fill: parent
+            margins: 20
+        }
+        spacing: 15
+
+        KaakaoLabel {
+            text: qsTr("NinjaView User Guide")
+            role: KaakaoLabel.Header
+            Layout.alignment: Qt.AlignHCenter
+        }
+
+        ScrollView {
+            id: scrollView
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            clip: true
+
+            ColumnLayout {
+                width: scrollView.availableWidth - 10
+                spacing: 12
+
+                KaakaoLabel {
+                    text: qsTr("Getting Started")
+                    font.bold: true
+                    role: KaakaoLabel.Primary
+                    Layout.fillWidth: true
+                }
+
+                KaakaoLabel {
+                    text: qsTr("NinjaView is a fast, lightweight tool designed for rapid photo triage. To begin, add a folder containing images (such as from a digital camera's SD card) using the <b>Add Folder</b> (+) button in the sidebar.")
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    role: KaakaoLabel.Secondary
+                    textFormat: Text.RichText
+                }
+
+                KaakaoLabel {
+                    text: qsTr("Triage Workflow")
+                    font.bold: true
+                    role: KaakaoLabel.Primary
+                    Layout.fillWidth: true
+                    Layout.topMargin: 10
+                }
+
+                KaakaoLabel {
+                    text: qsTr("1. <b>Browse</b>: Use the arrow keys to navigate the grid of thumbnails.<br>"
+                               + "2. <b>Quick Look</b>: Press <b>Space</b> to instantly show or hide a high-resolution preview of the selected image.<br>"
+                               + "3. <b>Fullscreen</b>: Press <b>Return</b> (or double-click) to open the image in immersive fullscreen view. Press <b>Escape</b> to exit.<br>"
+                               + "4. <b>Copy</b>: Press <b>" + (Qt.platform.os === "osx" ? "Cmd+C" : "Ctrl+C") + "</b> to copy the image data directly to your clipboard, allowing you to paste it into other applications (like Finder, Slack, or Photoshop).<br>"
+                               + "5. <b>Trash</b>: Press <b>Delete</b> (or Backspace) to move unwanted files directly to the trash folder.")
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    role: KaakaoLabel.Secondary
+                    textFormat: Text.RichText
+                }
+
+                KaakaoLabel {
+                    text: qsTr("Metadata & Favorites")
+                    font.bold: true
+                    role: KaakaoLabel.Primary
+                    Layout.fillWidth: true
+                    Layout.topMargin: 10
+                }
+
+                KaakaoLabel {
+                    text: qsTr("Press <b>" + (Qt.platform.os === "osx" ? "Cmd+I" : "Ctrl+I") + "</b> to toggle the Info Panel on the right. Here you can view camera EXIF tags, write local notes, assign custom tags, and mark images as Favorites by clicking the star (★). Notes and tags are saved locally and persist across sessions.")
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    role: KaakaoLabel.Secondary
+                    textFormat: Text.RichText
+                }
+
+                KaakaoLabel {
+                    text: qsTr("Performance & Customization")
+                    font.bold: true
+                    role: KaakaoLabel.Primary
+                    Layout.fillWidth: true
+                    Layout.topMargin: 10
+                }
+
+                KaakaoLabel {
+                    text: qsTr("Adjust settings such as delete confirmation dialogs and the maximum memory cache size in <b>Preferences</b> (<b>" + (Qt.platform.os === "osx" ? "Cmd+," : "Ctrl+,") + "</b>). Increasing the memory cache limit allows more high-resolution images to remain decoded in memory for smoother browsing.")
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    role: KaakaoLabel.Secondary
+                    textFormat: Text.RichText
+                }
+            }
+        }
+
+        KaakaoButton {
+            text: qsTr("Close")
+            Layout.alignment: Qt.AlignHCenter
+            onClicked: root.close()
+        }
+    }
+}

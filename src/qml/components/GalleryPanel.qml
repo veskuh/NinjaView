@@ -31,9 +31,6 @@ Item {
         filterScopeBar.currentIndex = 0;
         galleryModel.filterType = "All";
         galleryModel.cameraFilter = "";
-        if (typeof mediaTypeFilter !== "undefined" && mediaTypeFilter) {
-            mediaTypeFilter.activeIndex = 0;
-        }
         galleryModel.mediaTypeFilter = "All";
         panel.updateFilters();
     }
@@ -254,7 +251,12 @@ Item {
         border.width: 1
         visible: currentFolderPath !== ""
 
-        property int activeIndex: 0 // 0: All, 1: Photos, 2: Videos
+        property int activeIndex: {
+            if (typeof galleryModel === "undefined" || !galleryModel) return 0;
+            if (galleryModel.mediaTypeFilter === "Photos") return 1;
+            if (galleryModel.mediaTypeFilter === "Videos") return 2;
+            return 0; // Default or "All"
+        }
 
         Row {
             id: segmentRow
@@ -307,7 +309,6 @@ Item {
                     }
 
                     onClicked: {
-                        mediaTypeFilter.activeIndex = index
                         if (index === 0) {
                             galleryModel.mediaTypeFilter = "All"
                         } else if (index === 1) {

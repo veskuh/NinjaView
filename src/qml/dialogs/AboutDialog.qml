@@ -38,13 +38,13 @@ KaakaoWindow {
             
             KaakaoLabel {
                 text: "NinjaView"
-                role: KaakaoLabel.Role.Header
+                role: KaakaoLabel.Header
                 anchors.horizontalCenter: parent.horizontalCenter
             }
 
             KaakaoLabel {
                 text: qsTr("Version %1 (Build %2)").arg(appVersion).arg(appBuild)
-                role: KaakaoLabel.Role.Secondary
+                role: KaakaoLabel.Secondary
                 anchors.horizontalCenter: parent.horizontalCenter
             }
         }
@@ -62,12 +62,12 @@ KaakaoWindow {
             spacing: 8
             KaakaoLabel {
                 text: qsTr("Credits & Dependencies:")
-                role: KaakaoLabel.Role.Small
+                role: KaakaoLabel.Small
                 font.weight: Font.Bold
             }
             KaakaoLabel {
                 text: qsTr("• <b><a href=\"https://www.qt.io\">Qt</a></b> %1 (LGPL v3)<br>• <b><a href=\"https://github.com/veskuh/Kaakao\">Kaakao UI Components</a></b> (BSD 3-Clause)<br>• <b><a href=\"https://github.com/mayanklahiri/easyexif\">easyexif</a></b> (BSD 2-Clause, Copyright © 2010-2015 Mayank Lahiri)").arg(qtVersion)
-                role: KaakaoLabel.Role.Small
+                role: KaakaoLabel.Small
                 width: parent.width
                 wrapMode: Text.WordWrap
                 textFormat: Text.RichText
@@ -79,7 +79,7 @@ KaakaoWindow {
 
         KaakaoLabel {
             text: "Copyright © 2026 Vesa-Matti Hartikainen"
-            role: KaakaoLabel.Role.Small
+            role: KaakaoLabel.Small
             anchors.horizontalCenter: parent.horizontalCenter
         }
 

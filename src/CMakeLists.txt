@@ -38,6 +38,8 @@ qt_add_qml_module(NinjaViewLib
         qml/components/ExifOverlay.qml
         qml/dialogs/SettingsWindow.qml
         qml/dialogs/AboutDialog.qml
+        qml/dialogs/KeyboardShortcutsDialog.qml
+        qml/dialogs/UserGuideDialog.qml
     RESOURCES
         ../assets/ninja-icon.png
     DEPENDENCIES

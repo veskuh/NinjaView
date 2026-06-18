@@ -17,6 +17,7 @@ public:
     Q_INVOKABLE void openExternally(const QString &filePath);
     Q_INVOKABLE bool moveToTrash(const QString &filePath);
     Q_INVOKABLE int rotateImage(const QString &filePath, int angle);
+    Q_INVOKABLE void copyToClipboard(const QString &filePath);
 
 signals:
     void imageRotated(const QString &filePath);

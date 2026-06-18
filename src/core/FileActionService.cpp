@@ -7,6 +7,10 @@
 #include <QProcess>
 #include <QFile>
 #include <QDebug>
+#include <QClipboard>
+#include <QGuiApplication>
+#include <QMimeData>
+#include <QImage>
 
 FileActionService::FileActionService(QObject *parent) : QObject(parent)
 {
@@ -252,4 +256,45 @@ bool FileActionService::writeExifOrientation(const QString &filePath, int newOri
     file.close();
     return false;
 }
+
+void FileActionService::copyToClipboard(const QString &filePath)
+{
+    QString localPath = filePath;
+    if (filePath.startsWith("file://")) {
+        localPath = QUrl(filePath).toLocalFile();
+    }
+    
+    QFileInfo fileInfo(localPath);
+    if (!fileInfo.exists() || !fileInfo.isFile()) {
+        qWarning() << "copyToClipboard: File does not exist:" << localPath;
+        return;
+    }
+
+    QClipboard *clipboard = QGuiApplication::clipboard();
+    if (!clipboard) {
+        qWarning() << "copyToClipboard: Clipboard not available";
+        return;
+    }
+
+    QMimeData *mimeData = new QMimeData();
+
+    // 1. Add file path URL
+    QList<QUrl> urls;
+    urls.append(QUrl::fromLocalFile(localPath));
+    mimeData->setUrls(urls);
+
+    // 2. Add text path
+    mimeData->setText(localPath);
+
+    // 3. Add image data (QImage)
+    QImage image(localPath);
+    if (!image.isNull()) {
+        mimeData->setImageData(image);
+    } else {
+        qWarning() << "copyToClipboard: Failed to load image from" << localPath;
+    }
+
+    clipboard->setMimeData(mimeData);
+}
+
 

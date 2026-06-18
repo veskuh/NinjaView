@@ -4,6 +4,9 @@
 #include <QFile>
 #include <QUrl>
 #include <QFileInfo>
+#include <QClipboard>
+#include <QMimeData>
+#include <QGuiApplication>
 #include "FileActionService.h"
 #include "AsyncImageProvider.h"
 #include "exif.h"
@@ -34,6 +37,7 @@ private slots:
     void testRotateJpegHugeIfdOffset();
     void testRotateJpegTruncatedFields();
     void testRotateLittleEndianWritable();
+    void testCopyToClipboard();
 };
 
 void TestFileActionService::testMoveToTrashLocalPath()
@@ -448,6 +452,41 @@ void TestFileActionService::testRotateLittleEndianWritable()
     easyexif::EXIFInfo info;
     QCOMPARE(info.parseFrom((unsigned char *)buffer.data(), buffer.size()), 0);
     QCOMPARE(info.Orientation, 6);
+}
+
+void TestFileActionService::testCopyToClipboard()
+{
+    // Copy the test image to a temp directory
+    QTemporaryDir tempDir;
+    QVERIFY(tempDir.isValid());
+    QString sourcePath = "data/canon-g9-x.jpg";
+    QString destPath = tempDir.path() + "/test-copy.jpg";
+    QVERIFY(QFile::copy(sourcePath, destPath));
+
+    FileActionService service;
+    // Call copyToClipboard
+    service.copyToClipboard(destPath);
+
+    // Get the clipboard and verify the mime data
+    QClipboard *clipboard = QGuiApplication::clipboard();
+    if (clipboard) {
+        const QMimeData *mimeData = clipboard->mimeData();
+        QVERIFY(mimeData != nullptr);
+        
+        // 1. Verify text
+        QCOMPARE(mimeData->text(), destPath);
+
+        // 2. Verify URL
+        QVERIFY(mimeData->hasUrls());
+        QCOMPARE(mimeData->urls().first(), QUrl::fromLocalFile(destPath));
+
+        // 3. Verify image
+        QVERIFY(mimeData->hasImage());
+        QImage image = qvariant_cast<QImage>(mimeData->imageData());
+        QVERIFY(!image.isNull());
+    } else {
+        qWarning() << "Clipboard is not available in this test environment.";
+    }
 }
 
 QTEST_MAIN(TestFileActionService)
