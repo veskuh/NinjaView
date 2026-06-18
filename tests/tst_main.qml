@@ -307,4 +307,36 @@ TestCase {
         mainApp.showMainInfo = false
         rawGalleryModel.clear()
     }
+
+    function test_toolbar_info_button() {
+        var button = findChild(mainApp, "showInfoButton")
+        verify(button !== null, "Show Info button should be found")
+        
+        // 1. Initially disabled when no item is selected
+        rawGalleryModel.clear()
+        mainApp.showMainInfo = false
+        var grid = findChild(mainApp, "galleryGrid")
+        grid.currentIndex = -1
+        wait(100)
+        verify(!button.enabled, "Button should be disabled initially")
+
+        // 2. Enable it by adding a mock image and selecting it
+        rawGalleryModel.addImages(["/tmp/test_info.jpg"])
+        grid.currentIndex = 0
+        wait(100)
+        verify(button.enabled, "Button should be enabled when an image is selected")
+
+        // 3. Click the button
+        mouseClick(button)
+        wait(100)
+        compare(mainApp.showMainInfo, true, "showMainInfo should be true after click")
+
+        // 4. Click it again to hide
+        mouseClick(button)
+        wait(100)
+        compare(mainApp.showMainInfo, false, "showMainInfo should be false after second click")
+        
+        // Cleanup
+        rawGalleryModel.clear()
+    }
 }

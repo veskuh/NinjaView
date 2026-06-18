@@ -16,6 +16,7 @@ Item {
     property bool loading: false
     property string currentFolderPath: ""
     property var folderSelections: ({})
+    property int thumbnailSize: 200
 
     // Real path resolver
     readonly property string realFolderPath: {
@@ -368,8 +369,29 @@ Item {
         anchors.bottom: parent.bottom
         
         model: galleryModel
-        cellWidth: 110
-        cellHeight: 140
+        cellWidth: panel.thumbnailSize
+        cellHeight: panel.thumbnailSize + 30
+
+        WheelHandler {
+            id: wheelZoomHandler
+            acceptedModifiers: Qt.ControlModifier
+            onWheel: (event) => {
+                let current = panel.thumbnailSize;
+                let target = current;
+                if (event.angleDelta.y > 0) {
+                    target = Math.min(600, current + 50);
+                } else if (event.angleDelta.y < 0) {
+                    target = Math.max(200, current - 50);
+                }
+                if (target !== current) {
+                    if (typeof appSettings !== "undefined") {
+                        appSettings.thumbnailSize = target;
+                    } else {
+                        panel.thumbnailSize = target;
+                    }
+                }
+            }
+        }
         
         
         gridView.onCurrentIndexChanged: {
@@ -467,7 +489,7 @@ Item {
                     Text {
                         anchors.centerIn: parent
                         text: "📁"
-                        font.pixelSize: 48
+                        font.pixelSize: Math.max(48, Math.min(128, galleryGrid.cellWidth * 0.35))
                         visible: model.isFolder
                     }
 
@@ -478,7 +500,7 @@ Item {
                         }
                         visible: !model.isFolder
                         source: model.isFolder ? "" : root.getImageUrl(model.rawPath)
-                        sourceSize: Qt.size(200, 200)
+                        sourceSize: Qt.size(600, 600)
                         fillMode: Image.PreserveAspectFit
                         asynchronous: true
                         onStatusChanged: {

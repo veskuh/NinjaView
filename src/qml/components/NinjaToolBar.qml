@@ -13,6 +13,7 @@ KaakaoToolBar {
     required property int galleryPanelCurrentIndex
     required property bool previewOverlayVisible
     required property bool showMainInfo
+    property int thumbnailSize: 200
 
     signal rotateImage(int angle)
     signal toggleShowMainInfo()
@@ -117,11 +118,46 @@ KaakaoToolBar {
         }
 
         KaakaoToolButton {
+            id: showInfoButton
+            objectName: "showInfoButton"
             iconEmoji: "ℹ"
             text: toolbar.showMainInfo ? qsTr("Hide Info") : qsTr("Show Info")
             enabled: toolbar.galleryPanelCurrentIndex >= 0 && galleryModel.count > 0
             onClicked: toolbar.toggleShowMainInfo()
             KaakaoToolTip { visible: parent.hovered; text: qsTr("Show or hide the image info panel") }
+        }
+
+        RowLayout {
+            spacing: 2
+            Layout.alignment: Qt.AlignVCenter
+            visible: !toolbar.previewOverlayVisible
+
+            Text {
+                text: "−"
+                font.pixelSize: 14
+                font.bold: true
+                color: Theme.secondaryText
+                verticalAlignment: Text.AlignVCenter
+            }
+
+            KaakaoSlider {
+                id: zoomSlider
+                from: 200
+                to: 600
+                value: toolbar.thumbnailSize
+                implicitWidth: 100
+                leftPadding: 4
+                rightPadding: 4
+                onMoved: toolbar.thumbnailSize = value
+            }
+
+            Text {
+                text: "+"
+                font.pixelSize: 14
+                font.bold: true
+                color: Theme.secondaryText
+                verticalAlignment: Text.AlignVCenter
+            }
         }
 
         KaakaoSearchField {

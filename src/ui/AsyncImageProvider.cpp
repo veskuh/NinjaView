@@ -121,7 +121,13 @@ void AsyncImageResponse::run()
     int rotationAngle = m_provider->inMemoryRotation(cleanPath);
     QString cacheDir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + "/thumbnails";
     QString hash = QCryptographicHash::hash(cleanPath.toUtf8(), QCryptographicHash::Md5).toHex();
-    QString diskPath = cacheDir + "/" + hash + "_" + QString::number(m_requestedSize.width()) + "x" + QString::number(m_requestedSize.height()) + ".jpg";
+    
+    const int TARGET_DISK_THUMB_SIZE = 600;
+    bool isThumbnailRequest = m_requestedSize.isValid() &&
+                              m_requestedSize.width() <= TARGET_DISK_THUMB_SIZE &&
+                              m_requestedSize.height() <= TARGET_DISK_THUMB_SIZE;
+    QSize diskCacheSize = isThumbnailRequest ? QSize(TARGET_DISK_THUMB_SIZE, TARGET_DISK_THUMB_SIZE) : m_requestedSize;
+    QString diskPath = cacheDir + "/" + hash + "_" + QString::number(diskCacheSize.width()) + "x" + QString::number(diskCacheSize.height()) + ".jpg";
 
     if (rotationAngle == 0) {
         if (QFile::exists(diskPath)) {
@@ -131,6 +137,12 @@ void AsyncImageResponse::run()
                     emit finished();
                     return;
                 }
+                
+                // If it was loaded at 600px but requested smaller, scale in memory
+                if (isThumbnailRequest && (m_image.width() > m_requestedSize.width() || m_image.height() > m_requestedSize.height())) {
+                    m_image = m_image.scaled(m_requestedSize, Qt::KeepAspectRatio);
+                }
+
                 QMutexLocker locker(&s_cacheMutex);
                 m_provider->m_cache.insert(cacheKey, new QImage(m_image), m_image.sizeInBytes());
                 m_provider->m_cachedKeys[cleanPath].append(cacheKey);
@@ -155,33 +167,45 @@ void AsyncImageResponse::run()
         m_image = extractVideoFrameLinux(cleanPath);
 #endif
         if (!m_image.isNull()) {
-            if (m_requestedSize.isValid()) {
-                if (m_image.width() > m_requestedSize.width() || m_image.height() > m_requestedSize.height()) {
-                    m_image = m_image.scaled(m_requestedSize, Qt::KeepAspectRatio);
+            QImage diskCachedImage = m_image;
+            if (diskCacheSize.isValid()) {
+                if (diskCachedImage.width() > diskCacheSize.width() || diskCachedImage.height() > diskCacheSize.height()) {
+                    diskCachedImage = diskCachedImage.scaled(diskCacheSize, Qt::KeepAspectRatio);
                 }
             }
             
+            // Save to disk cache ONLY if it is not rotated in-memory
+            if (rotationAngle == 0) {
+                QDir().mkpath(cacheDir);
+                diskCachedImage.save(diskPath, "JPG", 80);
+            }
+
+            // Now prepare the image for the response (m_requestedSize)
+            if (isThumbnailRequest) {
+                if (diskCachedImage.width() > m_requestedSize.width() || diskCachedImage.height() > m_requestedSize.height()) {
+                    m_image = diskCachedImage.scaled(m_requestedSize, Qt::KeepAspectRatio);
+                } else {
+                    m_image = diskCachedImage;
+                }
+            } else {
+                m_image = diskCachedImage;
+            }
+
             // Save to memory cache
             {
                 QMutexLocker locker(&s_cacheMutex);
                 m_provider->m_cache.insert(cacheKey, new QImage(m_image), m_image.sizeInBytes());
                 m_provider->m_cachedKeys[cleanPath].append(cacheKey);
             }
-            
-            // Save to disk cache ONLY if it is not rotated in-memory
-            if (rotationAngle == 0) {
-                QDir().mkpath(cacheDir);
-                m_image.save(diskPath, "JPG", 80);
-            }
         }
     } else {
         QImageReader reader(cleanPath);
         reader.setAutoTransform(true);
         if (reader.canRead()) {
-            if (m_requestedSize.isValid()) {
+            if (diskCacheSize.isValid()) {
                 QSize size = reader.size();
-                if (size.width() > m_requestedSize.width() || size.height() > m_requestedSize.height()) {
-                    size.scale(m_requestedSize, Qt::KeepAspectRatio);
+                if (size.width() > diskCacheSize.width() || size.height() > diskCacheSize.height()) {
+                    size.scale(diskCacheSize, Qt::KeepAspectRatio);
                     reader.setScaledSize(size);
                 }
             }
@@ -206,17 +230,22 @@ void AsyncImageResponse::run()
                     m_image = m_image.transformed(transform);
                 }
 
+                // Save to disk cache ONLY if it is not rotated in-memory
+                if (rotationAngle == 0) {
+                    QDir().mkpath(cacheDir);
+                    m_image.save(diskPath, "JPG", 80);
+                }
+
+                // Now scale m_image in memory to the actual requested size (if it's a thumbnail request)
+                if (isThumbnailRequest && (m_image.width() > m_requestedSize.width() || m_image.height() > m_requestedSize.height())) {
+                    m_image = m_image.scaled(m_requestedSize, Qt::KeepAspectRatio);
+                }
+
                 // Save to memory cache
                 {
                     QMutexLocker locker(&s_cacheMutex);
                     m_provider->m_cache.insert(cacheKey, new QImage(m_image), m_image.sizeInBytes());
                     m_provider->m_cachedKeys[cleanPath].append(cacheKey);
-                }
-                
-                // Save to disk cache ONLY if it is not rotated in-memory
-                if (rotationAngle == 0) {
-                    QDir().mkpath(cacheDir);
-                    m_image.save(diskPath, "JPG", 80);
                 }
             }
         }

@@ -137,6 +137,30 @@ KaakaoWindow {
         onActivated: root.rotateImage(90)
     }
 
+    Shortcut {
+        sequences: ["Ctrl+=", "Ctrl++"]
+        enabled: !previewOverlay.visible
+        onActivated: {
+            appSettings.thumbnailSize = Math.min(600, appSettings.thumbnailSize + 50)
+        }
+    }
+
+    Shortcut {
+        sequence: "Ctrl+-"
+        enabled: !previewOverlay.visible
+        onActivated: {
+            appSettings.thumbnailSize = Math.max(200, appSettings.thumbnailSize - 50)
+        }
+    }
+
+    Shortcut {
+        sequence: "Ctrl+0"
+        enabled: !previewOverlay.visible
+        onActivated: {
+            appSettings.thumbnailSize = 200
+        }
+    }
+
     // Menu Bar
     menuBar: MenuBar {
         Menu {
@@ -251,6 +275,7 @@ KaakaoWindow {
         property string savedFolders: "[]"
         property int maxMemoryCacheSizeMB: 2048
         property bool confirmDeletions: true
+        property int thumbnailSize: 200
     }
 
     function getCurrentFolderPath() {
@@ -375,6 +400,8 @@ KaakaoWindow {
                 spacing: 0
 
                 NinjaToolBar {
+                    id: mainToolBar
+                    objectName: "mainToolBar"
                     Layout.fillWidth: true
                     
                     currentFolderDescription: root.currentFolderDescription
@@ -383,6 +410,7 @@ KaakaoWindow {
                     galleryPanelCurrentIndex: galleryPanel.currentIndex
                     previewOverlayVisible: previewOverlay.visible
                     showMainInfo: root.showMainInfo
+                    thumbnailSize: appSettings.thumbnailSize
                     
                     onRotateImage: (angle) => root.rotateImage(angle)
                     onToggleShowMainInfo: root.showMainInfo = !root.showMainInfo
@@ -393,6 +421,9 @@ KaakaoWindow {
                         galleryModel.clear()
                         root.loading = true
                         discoveryService.scanDirectory(fullPath, false)
+                    }
+                    onThumbnailSizeChanged: {
+                        appSettings.thumbnailSize = thumbnailSize
                     }
                 }
 
@@ -405,6 +436,7 @@ KaakaoWindow {
                     loading: root.loading
                     currentFolderPath: root.getCurrentFolderPath()
                     folderSelections: root.folderSelections
+                    thumbnailSize: appSettings.thumbnailSize
 
                     onFolderSelectionsUpdated: (selections) => {
                         root.folderSelections = selections
