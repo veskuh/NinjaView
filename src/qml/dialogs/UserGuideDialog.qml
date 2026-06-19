@@ -35,8 +35,11 @@ KaakaoWindow {
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
+            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+            ScrollBar.vertical.policy: ScrollBar.AsNeeded
 
             ColumnLayout {
+                id: contentColumn
                 width: scrollView.availableWidth - 10
                 spacing: 12
 
@@ -85,6 +88,70 @@ KaakaoWindow {
 
                 KaakaoLabel {
                     text: qsTr("Press <b>" + (Qt.platform.os === "osx" ? "Cmd+I" : "Ctrl+I") + "</b> to toggle the Info Panel on the right. Here you can view camera EXIF tags, write local notes, assign custom tags, and mark images as Favorites by clicking the star (★). Notes and tags are saved locally and persist across sessions.")
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    role: KaakaoLabel.Secondary
+                    textFormat: Text.RichText
+                }
+
+                KaakaoLabel {
+                    text: qsTr("Video Playback & Media Types")
+                    font.bold: true
+                    role: KaakaoLabel.Primary
+                    Layout.fillWidth: true
+                    Layout.topMargin: 10
+                }
+
+                KaakaoLabel {
+                    text: qsTr("NinjaView natively supports both images and video formats (MP4 and MOV). In fullscreen preview, video files will autoplay. To keep the playback experience immersive, the mouse cursor and player overlay auto-hide after a brief period of inactivity; simply move the mouse to reveal them again.")
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    role: KaakaoLabel.Secondary
+                    textFormat: Text.RichText
+                }
+
+                KaakaoLabel {
+                    text: qsTr("SD Card Auto-Detection")
+                    font.bold: true
+                    role: KaakaoLabel.Primary
+                    Layout.fillWidth: true
+                    Layout.topMargin: 10
+                }
+
+                KaakaoLabel {
+                    text: qsTr("Triage newly captured photos directly from your digital camera using NinjaView's plug-and-play volume monitoring. When a camera's SD card is inserted, the application detects the device and automatically refreshes your workspace, making manual directory navigation unnecessary.")
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    role: KaakaoLabel.Secondary
+                    textFormat: Text.RichText
+                }
+
+                KaakaoLabel {
+                    text: qsTr("Smart Date & Camera Filtering")
+                    font.bold: true
+                    role: KaakaoLabel.Primary
+                    Layout.fillWidth: true
+                    Layout.topMargin: 10
+                }
+
+                KaakaoLabel {
+                    text: qsTr("Isolate specific photos using the smart filter bar. NinjaView extracts and indexes camera metadata, allowing you to filter your active directory by date range (<b>Today</b>, <b>This Week</b>, <b>This Month</b>, or specific years) or target only photos taken by a particular camera model.")
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    role: KaakaoLabel.Secondary
+                    textFormat: Text.RichText
+                }
+
+                KaakaoLabel {
+                    text: qsTr("Lossless Rotation & Read-Only Fallbacks")
+                    font.bold: true
+                    role: KaakaoLabel.Primary
+                    Layout.fillWidth: true
+                    Layout.topMargin: 10
+                }
+
+                KaakaoLabel {
+                    text: qsTr("Correct the orientation of vertical shots quickly using <b>" + (Qt.platform.os === "osx" ? "Cmd+[" : "Ctrl+[") + "</b> or <b>" + (Qt.platform.os === "osx" ? "Cmd+]" : "Ctrl+]") + "</b>. NinjaView losslessly updates the orientation tag in the JPEG EXIF header directly on disk. If the image is stored on a write-protected card, the app falls back to in-memory rotation so you can view it correctly for the active session without error.")
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
                     role: KaakaoLabel.Secondary

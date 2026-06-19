@@ -33,12 +33,15 @@ KaakaoWindow {
         }
 
         ScrollView {
+            id: scrollView
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
+            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+            ScrollBar.vertical.policy: ScrollBar.AsNeeded
 
             ColumnLayout {
-                width: parent.width - 20
+                width: scrollView.availableWidth - 10
                 spacing: 15
 
                 // Section: Navigation & Viewing
