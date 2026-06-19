@@ -30,6 +30,11 @@ public:
     Q_INVOKABLE QString getTags(const QString &filePath);
     Q_INVOKABLE QStringList getAllTags();
     
+    Q_INVOKABLE bool setFavoriteBatch(const QStringList &filePaths, bool favorite);
+    Q_INVOKABLE bool setTagsBatch(const QStringList &filePaths, const QString &tags, bool append);
+    Q_INVOKABLE bool setNotesBatch(const QStringList &filePaths, const QString &notes, bool append);
+    Q_INVOKABLE bool updateCommonTagsBatch(const QStringList &filePaths, const QString &newCommonTags, const QString &oldCommonTags);
+    
     // Internal smart-folder helpers
     QStringList getFavorites();
     QStringList getImagesWithTag(const QString &tag);

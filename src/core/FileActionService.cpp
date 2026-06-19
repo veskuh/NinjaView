@@ -297,4 +297,78 @@ void FileActionService::copyToClipboard(const QString &filePath)
     clipboard->setMimeData(mimeData);
 }
 
+void FileActionService::copyToClipboardBatch(const QStringList &filePaths)
+{
+    QClipboard *clipboard = QGuiApplication::clipboard();
+    if (!clipboard) {
+        qWarning() << "copyToClipboardBatch: Clipboard not available";
+        return;
+    }
+
+    QMimeData *mimeData = new QMimeData();
+    QList<QUrl> urls;
+    QStringList localPaths;
+
+    for (const QString &filePath : filePaths) {
+        QString localPath = filePath;
+        if (filePath.startsWith("file://")) {
+            localPath = QUrl(filePath).toLocalFile();
+        }
+        
+        QFileInfo fileInfo(localPath);
+        if (fileInfo.exists() && fileInfo.isFile()) {
+            urls.append(QUrl::fromLocalFile(localPath));
+            localPaths.append(localPath);
+        }
+    }
+
+    if (urls.isEmpty()) {
+        delete mimeData;
+        return;
+    }
+
+    // 1. Add file path URLs
+    mimeData->setUrls(urls);
+
+    // 2. Add text paths
+    mimeData->setText(localPaths.join("\n"));
+
+    // 3. Single image fallback
+    if (urls.size() == 1) {
+        QImage image(localPaths.first());
+        if (!image.isNull()) {
+            mimeData->setImageData(image);
+        }
+    }
+
+    clipboard->setMimeData(mimeData);
+}
+
+int FileActionService::rotateImagesBatch(const QStringList &filePaths, int angle)
+{
+    int errors = 0;
+    for (const QString &path : filePaths) {
+        int result = rotateImage(path, angle);
+        if (result == -1) {
+            errors++;
+        }
+    }
+    return errors;
+}
+
+bool FileActionService::moveFilesToTrashBatch(const QStringList &filePaths)
+{
+    bool allSuccess = true;
+    for (const QString &filePath : filePaths) {
+        QString localPath = filePath;
+        if (filePath.startsWith("file://")) {
+            localPath = QUrl(filePath).toLocalFile();
+        }
+        if (!QFile::moveToTrash(localPath)) {
+            allSuccess = false;
+        }
+    }
+    return allSuccess;
+}
+
 

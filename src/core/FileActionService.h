@@ -18,6 +18,9 @@ public:
     Q_INVOKABLE bool moveToTrash(const QString &filePath);
     Q_INVOKABLE int rotateImage(const QString &filePath, int angle);
     Q_INVOKABLE void copyToClipboard(const QString &filePath);
+    Q_INVOKABLE void copyToClipboardBatch(const QStringList &filePaths);
+    Q_INVOKABLE int rotateImagesBatch(const QStringList &filePaths, int angle);
+    Q_INVOKABLE bool moveFilesToTrashBatch(const QStringList &filePaths);
 
 signals:
     void imageRotated(const QString &filePath);

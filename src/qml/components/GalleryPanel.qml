@@ -18,6 +18,61 @@ Item {
     property var folderSelections: ({})
     property int thumbnailSize: 200
 
+    // Multi-selection state
+    property var selectedPaths: ({})
+    property int lastClickedIndex: -1
+    readonly property var selectedPathsList: Object.keys(selectedPaths).filter(function(k) { return selectedPaths[k] === true; })
+    readonly property int selectedCount: selectedPathsList.length
+
+    function getSelectedPathsList() {
+        return selectedPathsList;
+    }
+
+    function toggleSelection(path, index) {
+        let newSelections = Object.assign({}, selectedPaths);
+        newSelections[path] = !newSelections[path];
+        selectedPaths = newSelections;
+        lastClickedIndex = index;
+    }
+
+    function handleItemClick(path, index, modifiers) {
+        if (modifiers & Qt.ControlModifier || modifiers & Qt.MetaModifier) {
+            toggleSelection(path, index);
+        } else if (modifiers & Qt.ShiftModifier) {
+            if (lastClickedIndex !== -1) {
+                let start = Math.min(lastClickedIndex, index);
+                let end = Math.max(lastClickedIndex, index);
+                let newSelections = Object.assign({}, selectedPaths);
+                for (let i = start; i <= end; ++i) {
+                    let p = galleryModel.getRawPath(i);
+                    newSelections[p] = true;
+                }
+                selectedPaths = newSelections;
+            } else {
+                toggleSelection(path, index);
+            }
+        } else {
+            let newSelections = {};
+            newSelections[path] = true;
+            selectedPaths = newSelections;
+            lastClickedIndex = index;
+            galleryGrid.currentIndex = index; // Keep standard index in sync
+        }
+    }
+
+    function selectAll() {
+        let newSelections = {};
+        for (let i = 0; i < galleryModel.count; ++i) {
+            newSelections[galleryModel.getRawPath(i)] = true;
+        }
+        selectedPaths = newSelections;
+    }
+
+    function clearSelection() {
+        selectedPaths = {};
+        lastClickedIndex = -1;
+    }
+
     // Real path resolver
     readonly property string realFolderPath: {
         if (currentFolderPath === "sd_card_device") {
@@ -32,6 +87,7 @@ Item {
         galleryModel.filterType = "All";
         galleryModel.cameraFilter = "";
         galleryModel.mediaTypeFilter = "All";
+        panel.clearSelection();
         panel.updateFilters();
     }
 
@@ -82,9 +138,17 @@ Item {
     readonly property alias gridView: galleryGrid.gridView
 
     function triggerDelete(index, path, name) {
+        deleteConfirmationDialog.isBatch = false
         deleteConfirmationDialog.targetIndex = index
         deleteConfirmationDialog.targetPath = path
         deleteConfirmationDialog.fileName = name
+        deleteConfirmationDialog.open()
+    }
+
+    function triggerDeleteBatch(paths) {
+        deleteConfirmationDialog.isBatch = true
+        deleteConfirmationDialog.targetPaths = paths
+        deleteConfirmationDialog.fileName = qsTr("%1 items").arg(paths.length)
         deleteConfirmationDialog.open()
     }
 
@@ -93,6 +157,8 @@ Item {
         objectName: "deleteConfirmationDialog"
         width: 400
         height: 170
+        property bool isBatch: false
+        property var targetPaths: []
         property int targetIndex: -1
         property string targetPath: ""
         property string fileName: ""
@@ -146,9 +212,28 @@ Item {
                     text: qsTr("Move to Trash")
                     highlighted: true
                     onClicked: {
-                        if (deleteConfirmationDialog.targetIndex >= 0 && deleteConfirmationDialog.targetPath !== "") {
-                            if (fileActionService.moveToTrash(deleteConfirmationDialog.targetPath)) {
-                                galleryModel.removeImage(deleteConfirmationDialog.targetIndex)
+                        if (deleteConfirmationDialog.isBatch) {
+                            if (fileActionService.moveFilesToTrashBatch(deleteConfirmationDialog.targetPaths)) {
+                                let indices = [];
+                                for (let i = 0; i < galleryModel.count; ++i) {
+                                    if (deleteConfirmationDialog.targetPaths.indexOf(galleryModel.getRawPath(i)) !== -1) {
+                                        indices.push(i);
+                                    }
+                                }
+                                indices.sort(function(a, b) { return b - a; });
+                                indices.forEach(function(idx) {
+                                    galleryModel.removeImage(idx);
+                                });
+                                panel.clearSelection();
+                            }
+                        } else {
+                            if (deleteConfirmationDialog.targetIndex >= 0 && deleteConfirmationDialog.targetPath !== "") {
+                                if (fileActionService.moveToTrash(deleteConfirmationDialog.targetPath)) {
+                                    galleryModel.removeImage(deleteConfirmationDialog.targetIndex)
+                                    let newSelections = Object.assign({}, panel.selectedPaths);
+                                    delete newSelections[deleteConfirmationDialog.targetPath];
+                                    panel.selectedPaths = newSelections;
+                                }
                             }
                         }
                         deleteConfirmationDialog.close()
@@ -162,40 +247,113 @@ Item {
         id: galleryContextMenu
         property int targetIndex: -1
         property string targetPath: ""
+
+        // True when the right-clicked item is part of a multi-item selection.
+        // In that case actions that don't support multiple files are disabled,
+        // while actions that do (rotate, trash) operate on the whole selection.
+        readonly property bool isMultiSelect: {
+            panel.selectedCount > 1 && panel.selectedPaths[galleryContextMenu.targetPath] === true
+        }
+
         KaakaoMenuItem {
             text: Qt.platform.os === "osx" ? qsTr("Reveal in Finder") : qsTr("Show in File Manager")
+            enabled: !galleryContextMenu.isMultiSelect
             onTriggered: fileActionService.showInFolder(galleryContextMenu.targetPath)
         }
         KaakaoMenuItem {
             text: qsTr("Open with Default Application")
+            enabled: !galleryContextMenu.isMultiSelect
             onTriggered: fileActionService.openExternally(galleryContextMenu.targetPath)
         }
         MenuSeparator {}
         KaakaoMenuItem {
             text: qsTr("Rotate Left")
-            enabled: root.isJpegFile(galleryContextMenu.targetIndex)
-            onTriggered: root.rotateImage(270)
+            enabled: {
+                if (galleryContextMenu.isMultiSelect) {
+                    let paths = panel.getSelectedPathsList();
+                    for (let i = 0; i < paths.length; ++i) {
+                        let p = paths[i].toLowerCase();
+                        if (p.endsWith(".jpg") || p.endsWith(".jpeg")) return true;
+                    }
+                    return false;
+                }
+                return root.isJpegFile(galleryContextMenu.targetIndex)
+            }
+            onTriggered: {
+                if (galleryContextMenu.isMultiSelect) {
+                    let paths = panel.getSelectedPathsList();
+                    let jpegs = paths.filter(function(p) {
+                        let pl = p.toLowerCase();
+                        return pl.endsWith(".jpg") || pl.endsWith(".jpeg");
+                    });
+                    if (jpegs.length > 0) fileActionService.rotateImagesBatch(jpegs, 270)
+                } else {
+                    root.rotateImage(270)
+                }
+            }
         }
         KaakaoMenuItem {
             text: qsTr("Rotate Right")
-            enabled: root.isJpegFile(galleryContextMenu.targetIndex)
-            onTriggered: root.rotateImage(90)
+            enabled: {
+                if (galleryContextMenu.isMultiSelect) {
+                    let paths = panel.getSelectedPathsList();
+                    for (let i = 0; i < paths.length; ++i) {
+                        let p = paths[i].toLowerCase();
+                        if (p.endsWith(".jpg") || p.endsWith(".jpeg")) return true;
+                    }
+                    return false;
+                }
+                return root.isJpegFile(galleryContextMenu.targetIndex)
+            }
+            onTriggered: {
+                if (galleryContextMenu.isMultiSelect) {
+                    let paths = panel.getSelectedPathsList();
+                    let jpegs = paths.filter(function(p) {
+                        let pl = p.toLowerCase();
+                        return pl.endsWith(".jpg") || pl.endsWith(".jpeg");
+                    });
+                    if (jpegs.length > 0) fileActionService.rotateImagesBatch(jpegs, 90)
+                } else {
+                    root.rotateImage(90)
+                }
+            }
         }
         MenuSeparator {}
         KaakaoMenuItem {
-            text: qsTr("Move to Trash")
+            text: galleryContextMenu.isMultiSelect
+                  ? qsTr("Move %1 Items to Trash").arg(panel.selectedCount)
+                  : qsTr("Move to Trash")
             onTriggered: {
-                let index = galleryContextMenu.targetIndex
-                let path = galleryContextMenu.targetPath
-                let name = galleryModel.getFileName(index)
-                if (panel.confirmDeletions) {
-                    deleteConfirmationDialog.targetIndex = index
-                    deleteConfirmationDialog.targetPath = path
-                    deleteConfirmationDialog.fileName = name
-                    deleteConfirmationDialog.open()
+                if (galleryContextMenu.isMultiSelect) {
+                    let paths = panel.getSelectedPathsList();
+                    if (panel.confirmDeletions) {
+                        panel.triggerDeleteBatch(paths)
+                    } else {
+                        if (fileActionService.moveFilesToTrashBatch(paths)) {
+                            let indices = [];
+                            for (let i = 0; i < galleryModel.count; ++i) {
+                                if (paths.indexOf(galleryModel.getRawPath(i)) !== -1)
+                                    indices.push(i);
+                            }
+                            indices.sort(function(a, b) { return b - a; });
+                            indices.forEach(function(idx) { galleryModel.removeImage(idx); });
+                            panel.clearSelection();
+                        }
+                    }
                 } else {
-                    if (fileActionService.moveToTrash(path)) {
-                        galleryModel.removeImage(index)
+                    let index = galleryContextMenu.targetIndex
+                    let path = galleryContextMenu.targetPath
+                    let name = galleryModel.getFileName(index)
+                    if (panel.confirmDeletions) {
+                        deleteConfirmationDialog.isBatch = false
+                        deleteConfirmationDialog.targetIndex = index
+                        deleteConfirmationDialog.targetPath = path
+                        deleteConfirmationDialog.fileName = name
+                        deleteConfirmationDialog.open()
+                    } else {
+                        if (fileActionService.moveToTrash(path)) {
+                            galleryModel.removeImage(index)
+                        }
                     }
                 }
             }
@@ -418,13 +576,75 @@ Item {
             required property var model
             required property int index
 
+            readonly property bool isMultiSelected: panel.selectedPaths[model.rawPath] === true
+
             width: galleryGrid.cellWidth
             height: galleryGrid.cellHeight
+
+            Keys.onPressed: (event) => {
+                let cols  = Math.max(1, Math.floor(galleryGrid.gridView.width / galleryGrid.cellWidth))
+                let total = galleryModel.count
+                let cur   = galleryGrid.gridView.currentIndex  // focused item in grid
+                let isShift = (event.modifiers & Qt.ShiftModifier) !== 0
+
+                // Compute where a plain arrow/home/end would move currentIndex.
+                let target = -1
+                switch (event.key) {
+                    case Qt.Key_Right: target = Math.min(cur + 1,    total - 1); break
+                    case Qt.Key_Left:  target = Math.max(cur - 1,    0);         break
+                    case Qt.Key_Down:  target = Math.min(cur + cols, total - 1); break
+                    case Qt.Key_Up:    target = Math.max(cur - cols, 0);         break
+                    case Qt.Key_Home:  target = 0;                               break
+                    case Qt.Key_End:   target = total - 1;                       break
+                    default: break
+                }
+
+                if (event.key === Qt.Key_Space && panel.selectedCount > 1) {
+                    // Block Space in multi-select (would trigger Quick Look)
+                    event.accepted = true
+
+                } else if (target >= 0 && isShift) {
+                    // Shift+Arrow / Shift+Home / Shift+End:
+                    // Selection = exactly the range [anchor … target].
+                    // Starting from {} (not existing map) allows shrinking back
+                    // toward the anchor and extending past it the other way.
+                    let anchor = panel.lastClickedIndex >= 0 ? panel.lastClickedIndex : cur
+                    let start  = Math.min(anchor, target)
+                    let end    = Math.max(anchor, target)
+                    let newSelections = {}
+                    for (let i = start; i <= end; ++i) {
+                        newSelections[galleryModel.getRawPath(i)] = true
+                    }
+                    panel.selectedPaths = newSelections
+                    // Do NOT accept — GridView moves currentIndex for scrolling.
+
+                } else if (target >= 0) {
+                    // Plain arrow (no Shift): move the single-item selection to
+                    // the target so the visual highlight follows keyboard navigation.
+                    // Also update the anchor so subsequent Shift+Arrow extends from here.
+                    let newSelections = {}
+                    newSelections[galleryModel.getRawPath(target)] = true
+                    panel.selectedPaths = newSelections
+                    panel.lastClickedIndex = target
+                    // Do NOT accept — GridView handles actual currentIndex move and scroll.
+                }
+            }
+            Keys.onReleased: (event) => {
+                if (event.key === Qt.Key_Space && panel.selectedCount > 1) {
+                    event.accepted = true;
+                }
+            }
+
+            onClicked: {
+                panel.handleItemClick(model.rawPath, index, Qt.keyboardModifiers)
+                galleryGrid.gridView.forceActiveFocus()
+            }
+
             background: Rectangle {
                 anchors.fill: parent
                 
                 color: {
-                    if (gridDelegate.isSelected) {
+                    if (gridDelegate.isMultiSelected) {
                         // If the grid has focus, use Active Selection BG. Otherwise, use Inactive Selection BG.
                         if (gridDelegate.GridView.view && gridDelegate.GridView.view.activeFocus)
                             return Theme.selectionBackgroundActive;
@@ -450,6 +670,17 @@ Item {
                     if (mouse.button === Qt.RightButton) {
                         galleryGrid.gridView.currentIndex = index
                         galleryGrid.gridView.forceActiveFocus()
+
+                        // If the right-clicked item is not part of the current multi-selection,
+                        // treat it as a plain single-item click: clear the prior selection and
+                        // select only this item so the menu always acts on a clear, unambiguous set.
+                        if (panel.selectedPaths[model.rawPath] !== true) {
+                            let newSelections = {}
+                            newSelections[model.rawPath] = true
+                            panel.selectedPaths = newSelections
+                            panel.lastClickedIndex = index
+                        }
+
                         if (model.isFolder) {
                             folderContextMenu.targetIndex = index
                             folderContextMenu.targetPath = model.rawPath
@@ -479,6 +710,38 @@ Item {
                     
                     Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutQuad } }
                     Behavior on opacity { NumberAnimation { duration: 150 } }
+
+                    Rectangle {
+                        id: selectionCheckbox
+                        anchors.top: parent.top
+                        anchors.left: parent.left
+                        anchors.margins: 6
+                        width: 20
+                        height: 20
+                        radius: 10
+                        color: gridDelegate.isMultiSelected ? Theme.selectionBackgroundActive : "#B0000000"
+                        border.color: "white"
+                        border.width: 1.5
+                        visible: !model.isFolder && (gridDelegate.isMultiSelected || gridDelegate.hovered)
+                        z: 10
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "✓"
+                            color: "white"
+                            font.pixelSize: 11
+                            font.bold: true
+                            visible: gridDelegate.isMultiSelected
+                        }
+                        
+                        MouseArea {
+                            anchors.fill: parent
+                            onClicked: (mouse) => {
+                                panel.toggleSelection(model.rawPath, index)
+                                galleryGrid.gridView.forceActiveFocus()
+                            }
+                        }
+                    }
                     
                     Rectangle {
                         anchors.fill: parent
@@ -601,7 +864,7 @@ Item {
                     horizontalAlignment: Text.AlignHCenter
                     elide: Text.ElideMiddle
                     font.pixelSize: 11
-                    color: isSelected && galleryGrid.gridView.activeFocus ? "#FFFFFF" : Theme.primaryText
+                    color: gridDelegate.isMultiSelected && galleryGrid.gridView.activeFocus ? "#FFFFFF" : Theme.primaryText
                 }
             }
         }

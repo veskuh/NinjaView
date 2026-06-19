@@ -26,6 +26,7 @@ KaakaoWindow {
     property var folderSelections: ({})
     property var rotationTimestamps: ({})
     property bool inlinePreviewActive: false
+    property alias galleryPanel: galleryPanel
 
     function getImageUrl(filePath) {
         if (!filePath) return "";
@@ -170,7 +171,7 @@ KaakaoWindow {
         id: quickLookAction
         text: root.inlinePreviewActive ? qsTr("Close Preview") : qsTr("Quick Look")
         shortcut: "Space"
-        enabled: !previewOverlay.visible && galleryPanel.currentIndex >= 0 && !galleryModel.isFolder(galleryPanel.currentIndex)
+        enabled: !previewOverlay.visible && galleryPanel.selectedCount <= 1 && galleryPanel.currentIndex >= 0 && !galleryModel.isFolder(galleryPanel.currentIndex)
         onTriggered: {
             if (root.inlinePreviewActive) {
                 root.inlinePreviewActive = false
@@ -187,10 +188,34 @@ KaakaoWindow {
         text: qsTr("Rotate Counterclockwise")
         shortcut: "Ctrl+["
         enabled: {
+            if (galleryPanel.selectedCount > 0) {
+                let paths = galleryPanel.getSelectedPathsList();
+                for (let i = 0; i < paths.length; ++i) {
+                    let p = paths[i].toLowerCase();
+                    if (p.endsWith(".jpg") || p.endsWith(".jpeg")) return true;
+                }
+                return false;
+            }
             let idx = previewOverlay.visible ? previewOverlay.currentIndex : galleryPanel.currentIndex
             return root.isJpegFile(idx)
         }
-        onTriggered: root.rotateImage(270)
+        onTriggered: {
+            if (galleryPanel.selectedCount > 0) {
+                let paths = galleryPanel.getSelectedPathsList();
+                let jpegs = [];
+                for (let i = 0; i < paths.length; ++i) {
+                    let p = paths[i].toLowerCase();
+                    if (p.endsWith(".jpg") || p.endsWith(".jpeg")) {
+                        jpegs.push(paths[i]);
+                    }
+                }
+                if (jpegs.length > 0) {
+                    fileActionService.rotateImagesBatch(jpegs, 270)
+                }
+            } else {
+                root.rotateImage(270)
+            }
+        }
     }
 
     Action {
@@ -198,17 +223,41 @@ KaakaoWindow {
         text: qsTr("Rotate Clockwise")
         shortcut: "Ctrl+]"
         enabled: {
+            if (galleryPanel.selectedCount > 0) {
+                let paths = galleryPanel.getSelectedPathsList();
+                for (let i = 0; i < paths.length; ++i) {
+                    let p = paths[i].toLowerCase();
+                    if (p.endsWith(".jpg") || p.endsWith(".jpeg")) return true;
+                }
+                return false;
+            }
             let idx = previewOverlay.visible ? previewOverlay.currentIndex : galleryPanel.currentIndex
             return root.isJpegFile(idx)
         }
-        onTriggered: root.rotateImage(90)
+        onTriggered: {
+            if (galleryPanel.selectedCount > 0) {
+                let paths = galleryPanel.getSelectedPathsList();
+                let jpegs = [];
+                for (let i = 0; i < paths.length; ++i) {
+                    let p = paths[i].toLowerCase();
+                    if (p.endsWith(".jpg") || p.endsWith(".jpeg")) {
+                        jpegs.push(paths[i]);
+                    }
+                }
+                if (jpegs.length > 0) {
+                    fileActionService.rotateImagesBatch(jpegs, 90)
+                }
+            } else {
+                root.rotateImage(90)
+            }
+        }
     }
 
     Action {
         id: showInFolderAction
         text: qsTr("Show in Finder")
         shortcut: "Ctrl+R"
-        enabled: !previewOverlay.visible && galleryPanel.currentIndex >= 0
+        enabled: !previewOverlay.visible && galleryPanel.currentIndex >= 0 && galleryPanel.selectedCount <= 1
         onTriggered: {
             let path = galleryModel.getRawPath(galleryPanel.currentIndex)
             fileActionService.showInFolder(path)
@@ -219,16 +268,40 @@ KaakaoWindow {
         id: deleteAction
         text: qsTr("Move to Trash")
         shortcut: "Delete"
-        enabled: !previewOverlay.visible && galleryPanel.currentIndex >= 0 && !galleryModel.isFolder(galleryPanel.currentIndex)
+        enabled: {
+            if (galleryPanel.selectedCount > 0) return true
+            return !previewOverlay.visible && galleryPanel.currentIndex >= 0 && !galleryModel.isFolder(galleryPanel.currentIndex)
+        }
         onTriggered: {
-            let index = galleryPanel.currentIndex
-            let path = galleryModel.getRawPath(index)
-            let name = galleryModel.getFileName(index)
-            if (appSettings.confirmDeletions) {
-                galleryPanel.triggerDelete(index, path, name)
+            if (galleryPanel.selectedCount > 0) {
+                let paths = galleryPanel.getSelectedPathsList();
+                if (appSettings.confirmDeletions) {
+                    galleryPanel.triggerDeleteBatch(paths);
+                } else {
+                    if (fileActionService.moveFilesToTrashBatch(paths)) {
+                        let indices = [];
+                        for (let i = 0; i < galleryModel.count; ++i) {
+                            if (paths.indexOf(galleryModel.getRawPath(i)) !== -1) {
+                                indices.push(i);
+                            }
+                        }
+                        indices.sort(function(a, b) { return b - a; });
+                        indices.forEach(function(idx) {
+                            galleryModel.removeImage(idx);
+                        });
+                        galleryPanel.clearSelection();
+                    }
+                }
             } else {
-                if (fileActionService.moveToTrash(path)) {
-                    galleryModel.removeImage(index)
+                let index = galleryPanel.currentIndex
+                let path = galleryModel.getRawPath(index)
+                let name = galleryModel.getFileName(index)
+                if (appSettings.confirmDeletions) {
+                    galleryPanel.triggerDelete(index, path, name)
+                } else {
+                    if (fileActionService.moveToTrash(path)) {
+                        galleryModel.removeImage(index)
+                    }
                 }
             }
         }
@@ -238,7 +311,7 @@ KaakaoWindow {
         id: fullscreenPreviewAction
         text: qsTr("Show Fullscreen")
         shortcut: "Return"
-        enabled: !previewOverlay.visible && galleryPanel.currentIndex >= 0 && !galleryModel.isFolder(galleryPanel.currentIndex)
+        enabled: !previewOverlay.visible && galleryPanel.selectedCount <= 1 && galleryPanel.currentIndex >= 0 && !galleryModel.isFolder(galleryPanel.currentIndex)
         onTriggered: {
             previewOverlay.currentIndex = galleryPanel.currentIndex
             previewOverlay.visible = true
@@ -249,7 +322,7 @@ KaakaoWindow {
         id: openExternallyAction
         text: qsTr("Open with Default Application")
         shortcut: "Ctrl+O"
-        enabled: !previewOverlay.visible && galleryPanel.currentIndex >= 0 && !galleryModel.isFolder(galleryPanel.currentIndex)
+        enabled: !previewOverlay.visible && galleryPanel.currentIndex >= 0 && !galleryModel.isFolder(galleryPanel.currentIndex) && galleryPanel.selectedCount <= 1
         onTriggered: {
             let path = galleryModel.getRawPath(galleryPanel.currentIndex)
             fileActionService.openExternally(path)
@@ -261,13 +334,18 @@ KaakaoWindow {
         text: qsTr("Copy")
         shortcut: "Ctrl+C"
         enabled: {
+            if (galleryPanel.selectedCount > 0) return true
             let idx = previewOverlay.visible ? previewOverlay.currentIndex : galleryPanel.currentIndex
             return idx >= 0 && !galleryModel.isFolder(idx)
         }
         onTriggered: {
-            let idx = previewOverlay.visible ? previewOverlay.currentIndex : galleryPanel.currentIndex
-            let path = galleryModel.getRawPath(idx)
-            fileActionService.copyToClipboard(path)
+            if (galleryPanel.selectedCount > 0) {
+                fileActionService.copyToClipboardBatch(galleryPanel.getSelectedPathsList())
+            } else {
+                let idx = previewOverlay.visible ? previewOverlay.currentIndex : galleryPanel.currentIndex
+                let path = galleryModel.getRawPath(idx)
+                fileActionService.copyToClipboard(path)
+            }
         }
     }
 
@@ -315,6 +393,27 @@ KaakaoWindow {
         onActivated: fullscreenPreviewAction.trigger()
     }
 
+    Shortcut {
+        sequence: "Ctrl+A"
+        context: Qt.WindowShortcut
+        onActivated: {
+            if (galleryPanel.gridView.activeFocus) {
+                galleryPanel.selectAll()
+            }
+        }
+    }
+
+    Shortcut {
+        sequence: "Escape"
+        context: Qt.WindowShortcut
+        enabled: !previewOverlay.visible && !root.inlinePreviewActive && galleryPanel.selectedCount > 0
+        onActivated: {
+            if (galleryPanel.selectedCount > 0) {
+                galleryPanel.clearSelection()
+            }
+        }
+    }
+
     // Menu Bar
     menuBar: MenuBar {
         Menu {
@@ -329,6 +428,10 @@ KaakaoWindow {
         Menu {
             title: qsTr("&Edit")
             MenuItem { action: copyAction }
+            MenuItem { action: rotateLeftAction }
+            MenuItem { action: rotateRightAction }
+            MenuSeparator {}
+            MenuItem { action: deleteAction }
         }
         Menu {
             title: qsTr("&View")
@@ -631,10 +734,11 @@ KaakaoWindow {
             objectName: "mainInfoPanel"
             SplitView.preferredWidth: 250
             SplitView.minimumWidth: 200
-            visible: root.showMainInfo && galleryPanel.currentIndex >= 0 && galleryModel.count > 0 && !galleryModel.isFolder(galleryPanel.currentIndex)
+            visible: root.showMainInfo && galleryPanel.currentFolderPath !== ""
             
-            currentPath: (galleryPanel.currentIndex >= 0 && !galleryModel.isFolder(galleryPanel.currentIndex)) ? galleryModel.getRawPath(galleryPanel.currentIndex) : ""
-            fileName: (galleryPanel.currentIndex >= 0) ? galleryModel.getFileName(galleryPanel.currentIndex) : ""
+            selectedPathsList: galleryPanel.selectedPathsList
+            currentPath: (galleryPanel.selectedCount === 1) ? galleryPanel.selectedPathsList[0] : ""
+            fileName: (galleryPanel.selectedCount === 1) ? galleryModel.getFileName(galleryPanel.lastClickedIndex) : ""
         }
     }
 

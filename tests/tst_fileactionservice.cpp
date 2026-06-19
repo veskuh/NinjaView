@@ -38,6 +38,9 @@ private slots:
     void testRotateJpegTruncatedFields();
     void testRotateLittleEndianWritable();
     void testCopyToClipboard();
+    void testMoveToTrashBatch();
+    void testRotateImagesBatch();
+    void testCopyToClipboardBatch();
 };
 
 void TestFileActionService::testMoveToTrashLocalPath()
@@ -486,6 +489,67 @@ void TestFileActionService::testCopyToClipboard()
         QVERIFY(!image.isNull());
     } else {
         qWarning() << "Clipboard is not available in this test environment.";
+    }
+}
+
+void TestFileActionService::testMoveToTrashBatch()
+{
+    QTemporaryFile f1; QVERIFY(f1.open()); QString p1 = f1.fileName(); f1.close();
+    QTemporaryFile f2; QVERIFY(f2.open()); QString p2 = f2.fileName(); f2.close();
+    
+    QVERIFY(QFile::exists(p1));
+    QVERIFY(QFile::exists(p2));
+    
+    FileActionService service;
+    bool success = service.moveFilesToTrashBatch({ p1, p2 });
+    if (success) {
+        QVERIFY(!QFile::exists(p1));
+        QVERIFY(!QFile::exists(p2));
+    } else {
+        qWarning() << "moveFilesToTrashBatch not fully supported. Files still exist.";
+    }
+}
+
+void TestFileActionService::testRotateImagesBatch()
+{
+    QTemporaryDir tempDir;
+    QVERIFY(tempDir.isValid());
+    QString p1 = tempDir.path() + "/img1.jpg";
+    QString p2 = tempDir.path() + "/img2.jpg";
+    QVERIFY(QFile::copy("data/canon-g9-x.jpg", p1));
+    QVERIFY(QFile::copy("data/canon-g9-x.jpg", p2));
+    
+    FileActionService service;
+    int errors = service.rotateImagesBatch({ p1, p2 }, 90);
+    QCOMPARE(errors, 0);
+}
+
+void TestFileActionService::testCopyToClipboardBatch()
+{
+    QTemporaryDir tempDir;
+    QVERIFY(tempDir.isValid());
+    QString p1 = tempDir.path() + "/c1.jpg";
+    QString p2 = tempDir.path() + "/c2.jpg";
+    QVERIFY(QFile::copy("data/canon-g9-x.jpg", p1));
+    QVERIFY(QFile::copy("data/canon-g9-x.jpg", p2));
+
+    FileActionService service;
+    service.copyToClipboardBatch({ p1, p2 });
+
+    QClipboard *clipboard = QGuiApplication::clipboard();
+    if (clipboard) {
+        const QMimeData *mimeData = clipboard->mimeData();
+        QVERIFY(mimeData != nullptr);
+        
+        QString expectedText = p1 + "\n" + p2;
+        QCOMPARE(mimeData->text(), expectedText);
+
+        QVERIFY(mimeData->hasUrls());
+        QCOMPARE(mimeData->urls().size(), 2);
+        QCOMPARE(mimeData->urls().first(), QUrl::fromLocalFile(p1));
+        QCOMPARE(mimeData->urls().last(), QUrl::fromLocalFile(p2));
+    } else {
+        qWarning() << "Clipboard not available.";
     }
 }
 

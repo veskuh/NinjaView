@@ -598,3 +598,224 @@ QStringList ExifDatabase::getImagesWithTag(const QString &tag)
     }
     return paths;
 }
+
+bool ExifDatabase::setFavoriteBatch(const QStringList &filePaths, bool favorite)
+{
+    QSqlDatabase db = getDatabaseConnection();
+    if (!db.isOpen()) return false;
+
+    db.transaction();
+    QSqlQuery query(db);
+    for (const QString &path : filePaths) {
+        if (!ensureRecordExists(path, query)) continue;
+        query.prepare("UPDATE exif_cache SET favorite = :fav WHERE file_path = :path");
+        query.bindValue(":fav", favorite ? 1 : 0);
+        query.bindValue(":path", path);
+        query.exec();
+    }
+    bool ok = db.commit();
+    if (ok) {
+        emit favoritesChanged();
+    }
+    return ok;
+}
+
+bool ExifDatabase::setTagsBatch(const QStringList &filePaths, const QString &tags, bool append)
+{
+    QSqlDatabase db = getDatabaseConnection();
+    if (!db.isOpen()) return false;
+
+    // Clean and normalize the tags input first
+    QStringList inputList;
+    for (const QString &tag : tags.split(',')) {
+        QString trimmed = tag.trimmed();
+        if (!trimmed.isEmpty()) {
+            inputList << trimmed;
+        }
+    }
+    QString cleanedInput = inputList.join(",");
+
+    db.transaction();
+    QSqlQuery query(db);
+    for (const QString &path : filePaths) {
+        if (!ensureRecordExists(path, query)) continue;
+        
+        QString newTagsStr = cleanedInput;
+        if (append) {
+            QSqlQuery getQuery(db);
+            getQuery.prepare("SELECT tags FROM exif_cache WHERE file_path = :path");
+            getQuery.bindValue(":path", path);
+            QString currentTags;
+            if (getQuery.exec() && getQuery.next()) {
+                currentTags = getQuery.value(0).toString().trimmed();
+            }
+            
+            if (!currentTags.isEmpty()) {
+                QStringList currentList = currentTags.split(',', Qt::SkipEmptyParts);
+                for (const QString &t : inputList) {
+                    if (!currentList.contains(t, Qt::CaseInsensitive)) {
+                        currentList.append(t);
+                    }
+                }
+                newTagsStr = currentList.join(",");
+            }
+        }
+        
+        query.prepare("UPDATE exif_cache SET tags = :tags WHERE file_path = :path");
+        query.bindValue(":tags", newTagsStr);
+        query.bindValue(":path", path);
+        query.exec();
+    }
+    bool ok = db.commit();
+    if (ok) {
+        emit tagsChanged();
+    }
+    return ok;
+}
+
+bool ExifDatabase::setNotesBatch(const QStringList &filePaths, const QString &notes, bool append)
+{
+    QSqlDatabase db = getDatabaseConnection();
+    if (!db.isOpen()) return false;
+
+    db.transaction();
+    QSqlQuery query(db);
+    for (const QString &path : filePaths) {
+        if (!ensureRecordExists(path, query)) continue;
+        
+        QString newNotes = notes;
+        if (append) {
+            QSqlQuery getQuery(db);
+            getQuery.prepare("SELECT notes FROM exif_cache WHERE file_path = :path");
+            getQuery.bindValue(":path", path);
+            QString currentNotes;
+            if (getQuery.exec() && getQuery.next()) {
+                currentNotes = getQuery.value(0).toString();
+            }
+            if (!currentNotes.isEmpty()) {
+                newNotes = currentNotes + "\n" + notes;
+            }
+        }
+        
+        query.prepare("UPDATE exif_cache SET notes = :notes WHERE file_path = :path");
+        query.bindValue(":notes", newNotes);
+        query.bindValue(":path", path);
+        query.exec();
+    }
+    bool ok = db.commit();
+    if (ok) {
+        emit notesChanged("");
+    }
+    return ok;
+}
+
+bool ExifDatabase::updateCommonTagsBatch(const QStringList &filePaths, const QString &newCommonTags, const QString &oldCommonTags)
+{
+    QSqlDatabase db = getDatabaseConnection();
+    if (!db.isOpen()) return false;
+
+    // Clean and split tags
+    QStringList oldTags;
+    for (const QString &t : oldCommonTags.split(',')) {
+        QString trimmed = t.trimmed();
+        if (!trimmed.isEmpty()) oldTags << trimmed;
+    }
+
+    QStringList newTags;
+    for (const QString &t : newCommonTags.split(',')) {
+        QString trimmed = t.trimmed();
+        if (!trimmed.isEmpty()) newTags << trimmed;
+    }
+
+    // Find tags to add: in newTags but not in oldTags (case-insensitive)
+    QStringList tagsToAdd;
+    for (const QString &t : newTags) {
+        bool found = false;
+        for (const QString &ot : oldTags) {
+            if (ot.compare(t, Qt::CaseInsensitive) == 0) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            tagsToAdd << t;
+        }
+    }
+
+    // Find tags to remove: in oldTags but not in newTags (case-insensitive)
+    QStringList tagsToRemove;
+    for (const QString &ot : oldTags) {
+        bool found = false;
+        for (const QString &nt : newTags) {
+            if (nt.compare(ot, Qt::CaseInsensitive) == 0) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            tagsToRemove << ot;
+        }
+    }
+
+    // If there is nothing to add and nothing to remove, we don't need to do anything
+    if (tagsToAdd.isEmpty() && tagsToRemove.isEmpty()) {
+        return true;
+    }
+
+    db.transaction();
+    QSqlQuery query(db);
+    for (const QString &path : filePaths) {
+        if (!ensureRecordExists(path, query)) continue;
+
+        // Fetch current tags
+        QSqlQuery getQuery(db);
+        getQuery.prepare("SELECT tags FROM exif_cache WHERE file_path = :path");
+        getQuery.bindValue(":path", path);
+        QString currentTagsStr;
+        if (getQuery.exec() && getQuery.next()) {
+            currentTagsStr = getQuery.value(0).toString().trimmed();
+        }
+
+        QStringList currentTags = currentTagsStr.split(',', Qt::SkipEmptyParts);
+        for (int i = 0; i < currentTags.size(); ++i) {
+            currentTags[i] = currentTags[i].trimmed();
+        }
+
+        // Remove tags in tagsToRemove (case-insensitive)
+        for (const QString &tr : tagsToRemove) {
+            for (int i = currentTags.size() - 1; i >= 0; --i) {
+                if (currentTags[i].compare(tr, Qt::CaseInsensitive) == 0) {
+                    currentTags.removeAt(i);
+                }
+            }
+        }
+
+        // Add tags in tagsToAdd (avoiding case-insensitive duplicates)
+        for (const QString &ta : tagsToAdd) {
+            bool exists = false;
+            for (const QString &ct : currentTags) {
+                if (ct.compare(ta, Qt::CaseInsensitive) == 0) {
+                    exists = true;
+                    break;
+                }
+            }
+            if (!exists) {
+                currentTags.append(ta);
+            }
+        }
+
+        QString updatedTagsStr = currentTags.join(",");
+
+        query.prepare("UPDATE exif_cache SET tags = :tags WHERE file_path = :path");
+        query.bindValue(":tags", updatedTagsStr);
+        query.bindValue(":path", path);
+        query.exec();
+    }
+
+    bool commitOk = db.commit();
+    if (commitOk) {
+        emit tagsChanged();
+    }
+    return commitOk;
+}
+

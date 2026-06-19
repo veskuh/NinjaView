@@ -10,6 +10,7 @@ class TestExifDatabase : public QObject
 private slots:
     void initTestCase();
     void testDatabaseOperations();
+    void testBatchOperations();
 };
 
 void TestExifDatabase::initTestCase()
@@ -131,6 +132,53 @@ void TestExifDatabase::testDatabaseOperations()
 
     QVERIFY(!db.isCached(filePath, fileSize, lastModified));
     QVERIFY(db.getExifData(filePath).isEmpty());
+}
+
+void TestExifDatabase::testBatchOperations()
+{
+    QTemporaryDir tempDir;
+    QVERIFY(tempDir.isValid());
+    QString tempDbPath = tempDir.path() + "/test_exif_batch.db";
+    ExifDatabase db(tempDbPath);
+    QVERIFY(db.init());
+
+    QStringList paths = { "/tmp/img1.jpg", "/tmp/img2.jpg", "/tmp/img3.jpg" };
+    
+    // Test favorite batch
+    QSignalSpy favSpy(&db, &ExifDatabase::favoritesChanged);
+    QVERIFY(db.setFavoriteBatch(paths, true));
+    QCOMPARE(favSpy.count(), 1);
+    QVERIFY(db.isFavorite(paths[0]));
+    QVERIFY(db.isFavorite(paths[1]));
+    QVERIFY(db.isFavorite(paths[2]));
+
+    // Test favorite batch back to false
+    QVERIFY(db.setFavoriteBatch(paths, false));
+    QVERIFY(!db.isFavorite(paths[0]));
+
+    // Test tags batch (overwrite mode)
+    QSignalSpy tagsSpy(&db, &ExifDatabase::tagsChanged);
+    QVERIFY(db.setTagsBatch(paths, "holiday, beach", false));
+    QCOMPARE(tagsSpy.count(), 1);
+    QCOMPARE(db.getTags(paths[0]), QString("holiday,beach"));
+    QCOMPARE(db.getTags(paths[1]), QString("holiday,beach"));
+
+    // Test tags batch (append mode)
+    QVERIFY(db.setTagsBatch(paths, "sun, beach", true));
+    QString tags0 = db.getTags(paths[0]);
+    QVERIFY(tags0.contains("holiday"));
+    QVERIFY(tags0.contains("beach"));
+    QVERIFY(tags0.contains("sun"));
+    
+    // Test notes batch (overwrite mode)
+    QSignalSpy notesSpy(&db, &ExifDatabase::notesChanged);
+    QVERIFY(db.setNotesBatch(paths, "Batch notes", false));
+    QCOMPARE(notesSpy.count(), 1);
+    QCOMPARE(db.getNotes(paths[0]), QString("Batch notes"));
+
+    // Test notes batch (append mode)
+    QVERIFY(db.setNotesBatch(paths, "Appended notes", true));
+    QCOMPARE(db.getNotes(paths[0]), QString("Batch notes\nAppended notes"));
 }
 
 QTEST_MAIN(TestExifDatabase)

@@ -119,4 +119,20 @@ TestCase {
         overlay.currentIndex = 0
         overlay.visible = false
     }
+
+    function test_close_on_enter() {
+        overlay.visible = true
+        overlay.forceActiveFocus()
+        verify(overlay.visible, "Overlay should be visible")
+        
+        keyClick(Qt.Key_Return)
+        tryVerify(function() { return !overlay.visible }, 1000, "Overlay should hide on Return")
+
+        overlay.visible = true
+        overlay.forceActiveFocus()
+        verify(overlay.visible, "Overlay should be visible")
+        
+        keyClick(Qt.Key_Enter)
+        tryVerify(function() { return !overlay.visible }, 1000, "Overlay should hide on Enter")
+    }
 }

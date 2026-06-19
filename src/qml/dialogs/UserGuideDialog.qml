@@ -69,9 +69,63 @@ KaakaoWindow {
                 KaakaoLabel {
                     text: qsTr("1. <b>Browse</b>: Use the arrow keys to navigate the grid of thumbnails.<br>"
                                + "2. <b>Quick Look</b>: Press <b>Space</b> to instantly show or hide a high-resolution preview of the selected image.<br>"
-                               + "3. <b>Fullscreen</b>: Press <b>Return</b> (or double-click) to open the image in immersive fullscreen view. Press <b>Escape</b> to exit.<br>"
+                               + "3. <b>Fullscreen</b>: Press <b>Return</b> (or double-click) to open the image in immersive fullscreen view. Press <b>Escape</b> or <b>Return</b> to exit.<br>"
                                + "4. <b>Copy</b>: Press <b>" + (Qt.platform.os === "osx" ? "Cmd+C" : "Ctrl+C") + "</b> to copy the image data directly to your clipboard, allowing you to paste it into other applications (like Finder, Slack, or Photoshop).<br>"
                                + "5. <b>Trash</b>: Press <b>Delete</b> (or Backspace) to move unwanted files directly to the trash folder.")
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    role: KaakaoLabel.Secondary
+                    textFormat: Text.RichText
+                }
+
+                KaakaoLabel {
+                    text: qsTr("Multi-File Operations")
+                    font.bold: true
+                    role: KaakaoLabel.Primary
+                    Layout.fillWidth: true
+                    Layout.topMargin: 10
+                }
+
+                KaakaoLabel {
+                    text: qsTr("Select several files at once to act on them together:")
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    role: KaakaoLabel.Secondary
+                    textFormat: Text.RichText
+                }
+
+                KaakaoLabel {
+                    text: qsTr("<b>Selecting files</b><br>"
+                               + "\u2022 <b>" + (Qt.platform.os === "osx" ? "Cmd" : "Ctrl") + "+click</b> — add or remove a file from the selection.<br>"
+                               + "\u2022 <b>Shift+click</b> — extend the selection to cover a range.<br>"
+                               + "\u2022 <b>" + (Qt.platform.os === "osx" ? "Cmd" : "Ctrl") + "+A</b> — select all files in the current view.<br>"
+                               + "\u2022 <b>Escape</b> — clear the selection.")
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    role: KaakaoLabel.Secondary
+                    textFormat: Text.RichText
+                }
+
+                KaakaoLabel {
+                    text: qsTr("<b>Actions that apply to the whole selection</b><br>"
+                               + "\u2022 <b>Copy</b> ("
+                               + (Qt.platform.os === "osx" ? "Cmd" : "Ctrl")
+                               + "+C) — copies all selected files to the clipboard.<br>"
+                               + "\u2022 <b>Rotate</b> ("
+                               + (Qt.platform.os === "osx" ? "Cmd+[ / Cmd+]" : "Ctrl+[ / Ctrl+]")
+                               + ") — losslessly rotates all selected JPEG files.<br>"
+                               + "\u2022 <b>Move to Trash</b> (Delete) — moves all selected files to the trash.<br>"
+                               + "\u2022 <b>Tags</b> — the Info panel shows the intersection of tags shared by all selected files. Editing the tag list adds or removes tags across the entire selection while preserving any tags unique to individual files.")
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    role: KaakaoLabel.Secondary
+                    textFormat: Text.RichText
+                }
+
+                KaakaoLabel {
+                    text: qsTr("<b>Actions not available for multiple files</b><br>"
+                               + "\u2022 Quick Look and Fullscreen preview require a single file.<br>"
+                               + "\u2022 Reveal in Finder and Open with Default Application are disabled when more than one file is selected.")
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
                     role: KaakaoLabel.Secondary

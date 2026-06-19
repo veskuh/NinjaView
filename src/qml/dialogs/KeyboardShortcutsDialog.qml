@@ -106,6 +106,33 @@ KaakaoWindow {
                     KaakaoLabel { text: "Delete / Backspace"; font.weight: Font.Bold }
                 }
 
+                // Section: Multi-File Selection
+                KaakaoLabel {
+                    text: qsTr("Multi-File Selection")
+                    font.bold: true
+                    role: KaakaoLabel.Primary
+                    Layout.topMargin: 10
+                }
+
+                GridLayout {
+                    columns: 2
+                    columnSpacing: 20
+                    rowSpacing: 6
+                    Layout.fillWidth: true
+
+                    KaakaoLabel { text: qsTr("Add / Remove File"); role: KaakaoLabel.Secondary }
+                    KaakaoLabel { text: cmdKey + " + Click"; font.weight: Font.Bold }
+
+                    KaakaoLabel { text: qsTr("Extend Selection"); role: KaakaoLabel.Secondary }
+                    KaakaoLabel { text: "Shift + Click"; font.weight: Font.Bold }
+
+                    KaakaoLabel { text: qsTr("Select All"); role: KaakaoLabel.Secondary }
+                    KaakaoLabel { text: cmdKey + " A"; font.weight: Font.Bold }
+
+                    KaakaoLabel { text: qsTr("Clear Selection"); role: KaakaoLabel.Secondary }
+                    KaakaoLabel { text: "Escape"; font.weight: Font.Bold }
+                }
+
                 // Section: Application
                 KaakaoLabel {
                     text: qsTr("Application")
