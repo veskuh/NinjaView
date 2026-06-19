@@ -23,7 +23,7 @@ void TestGalleryFilterProxyModel::initTestCase()
 
 void TestGalleryFilterProxyModel::testFiltering()
 {
-    ExifDatabase db;
+    ExifDatabase db(":memory:");
     QVERIFY(db.init());
     QVERIFY(db.clear());
 
@@ -240,7 +240,7 @@ void TestGalleryFilterProxyModel::testFiltering()
 
 void TestGalleryFilterProxyModel::testVideoFiltering()
 {
-    ExifDatabase db;
+    ExifDatabase db(":memory:");
     QVERIFY(db.init());
     QVERIFY(db.clear());
 

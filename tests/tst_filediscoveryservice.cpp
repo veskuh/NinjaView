@@ -57,7 +57,7 @@ void TestFileDiscoveryService::testScanDirectory()
     QFile f4(video2); QVERIFY(f4.open(QIODevice::WriteOnly)); f4.write("dummy"); f4.close();
 
     FileDiscoveryService service;
-    ExifDatabase db;
+    ExifDatabase db(":memory:");
     db.init();
     service.setDatabase(&db);
 
@@ -91,7 +91,7 @@ void TestFileDiscoveryService::testScanDirectoryWithFolders()
     QVERIFY(dir.mkdir("sub2"));
 
     FileDiscoveryService service;
-    ExifDatabase db;
+    ExifDatabase db(":memory:");
     db.init();
     service.setDatabase(&db);
 
@@ -131,7 +131,7 @@ void TestFileDiscoveryService::testRecursiveScan()
     f.close();
 
     FileDiscoveryService service;
-    ExifDatabase db;
+    ExifDatabase db(":memory:");
     db.init();
     service.setDatabase(&db);
 
@@ -165,7 +165,7 @@ void TestFileDiscoveryService::testConcurrentScans()
     QFile fB(bImg); QVERIFY(fB.open(QIODevice::WriteOnly)); fB.write("dummy"); fB.close();
 
     FileDiscoveryService service;
-    ExifDatabase db;
+    ExifDatabase db(":memory:");
     db.init();
     service.setDatabase(&db);
 
@@ -187,7 +187,7 @@ void TestFileDiscoveryService::testConcurrentScans()
 void TestFileDiscoveryService::testInvalidDirectory()
 {
     FileDiscoveryService service;
-    ExifDatabase db;
+    ExifDatabase db(":memory:");
     db.init();
     service.setDatabase(&db);
 
@@ -212,7 +212,7 @@ void TestFileDiscoveryService::testIsScanningProperty()
     QFile f(img); QVERIFY(f.open(QIODevice::WriteOnly)); f.write("dummy"); f.close();
 
     FileDiscoveryService service;
-    ExifDatabase db;
+    ExifDatabase db(":memory:");
     db.init();
     service.setDatabase(&db);
 
@@ -242,7 +242,7 @@ void TestFileDiscoveryService::testFileUrlHandling()
     QFile f(img); QVERIFY(f.open(QIODevice::WriteOnly)); f.write("dummy"); f.close();
 
     FileDiscoveryService service;
-    ExifDatabase db;
+    ExifDatabase db(":memory:");
     db.init();
     service.setDatabase(&db);
 
@@ -269,7 +269,7 @@ void TestFileDiscoveryService::testIndexingSignal()
     QFile f(img); QVERIFY(f.open(QIODevice::WriteOnly)); f.write("dummy"); f.close();
 
     FileDiscoveryService service;
-    ExifDatabase db;
+    ExifDatabase db(":memory:");
     db.init();
     service.setDatabase(&db);
 
@@ -307,7 +307,7 @@ void TestFileDiscoveryService::testBundleFiltering()
     QFile f4(photosImg); QVERIFY(f4.open(QIODevice::WriteOnly)); f4.write("dummy"); f4.close();
 
     FileDiscoveryService service;
-    ExifDatabase db;
+    ExifDatabase db(":memory:");
     db.init();
     service.setDatabase(&db);
 

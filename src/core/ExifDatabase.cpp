@@ -9,15 +9,19 @@
 #include <QFileInfo>
 #include <QSet>
 
-ExifDatabase::ExifDatabase(QObject *parent)
+ExifDatabase::ExifDatabase(const QString &dbPath, QObject *parent)
     : QObject(parent)
 {
-    QString appData = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-    QDir dir(appData);
-    if (!dir.exists()) {
-        dir.mkpath(".");
+    if (!dbPath.isEmpty()) {
+        m_dbPath = dbPath;
+    } else {
+        QString appData = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+        QDir dir(appData);
+        if (!dir.exists()) {
+            dir.mkpath(".");
+        }
+        m_dbPath = appData + "/exif_cache.db";
     }
-    m_dbPath = appData + "/exif_cache.db";
     qDebug() << "ExifDatabase: DB Path initialized to" << m_dbPath;
 }
 

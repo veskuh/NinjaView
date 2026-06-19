@@ -21,6 +21,9 @@ private slots:
     void testVideoParsing();
     void testWithDatabaseSaveAndCacheHit();
     void testExifReaderExtraCoverage();
+    void testVideoHeaderEndAndVersions();
+    void testCacheBackfillComplex();
+    void testEXIFLensFallbacks();
     void cleanupTestCase();
 };
 
@@ -159,7 +162,7 @@ void TestExifReader::testVideoParsing()
 void TestExifReader::testWithDatabaseSaveAndCacheHit()
 {
     // Use a fresh database by clearing first
-    ExifDatabase db;
+    ExifDatabase db(":memory:");
     QVERIFY(db.init());
     QVERIFY(db.clear());
 
@@ -187,7 +190,7 @@ void TestExifReader::testWithDatabaseSaveAndCacheHit()
 
 void TestExifReader::testExifReaderExtraCoverage()
 {
-    ExifDatabase db;
+    ExifDatabase db(":memory:");
     QVERIFY(db.init());
     QVERIFY(db.clear());
 
@@ -247,6 +250,182 @@ void TestExifReader::testExifReaderExtraCoverage()
     QCOMPARE(dataBackfilled["Make"].toString(), "ManualMake");
     QVERIFY(!dataBackfilled["Dimensions"].toString().isEmpty());
     QVERIFY(!dataBackfilled["DateTime"].toString().isEmpty());
+}
+
+void TestExifReader::testVideoHeaderEndAndVersions()
+{
+    QTemporaryDir tempDir;
+    QVERIFY(tempDir.isValid());
+    QString path = tempDir.path() + "/mock_video.mp4";
+
+    QFile file(path);
+    QVERIFY(file.open(QIODevice::WriteOnly));
+
+    // 1. Write ftyp box at the very beginning
+    QByteArray firstHeader;
+    firstHeader.append("\x00\x00\x00\x14""ftypmp41\x00\x00\x00\x00mp41", 20);
+    QVERIFY(file.write(firstHeader) > 0);
+
+    // 2. Write 130KB of padding to make sure the remainder is NOT in the first 128KB
+    QByteArray padding(130 * 1024, 'A');
+    QVERIFY(file.write(padding) > 0);
+
+    // 3. Write mvhd and tkhd headers at the end
+    QByteArray header;
+    // mvhd box Version 1 (64-bit timestamps and duration)
+    // Structure:
+    // 4 bytes: size (120 bytes -> \x00\x00\x00\x78)
+    // 4 bytes: "mvhd"
+    // 1 byte: version = 1 (\x01)
+    // 3 bytes: flags (\x00\x00\x00)
+    // 8 bytes: creation time (64-bit)
+    // 8 bytes: modification time (64-bit)
+    // 4 bytes: timescale (32-bit, e.g. 1000 -> \x00\x00\x03\xe8)
+    // 8 bytes: duration (64-bit, e.g., 3600000 ms -> 1 hour -> \x00\x00\x00\x00\x00\x36\xee\x80)
+    header.append("\x00\x00\x00\x78""mvhd", 8);
+    header.append("\x01\x00\x00\x00", 4); // version 1, flags 0
+    header.append("\x00\x00\x00\x00\x00\x00\x00\x05", 8); // creation time
+    header.append("\x00\x00\x00\x00\x00\x00\x00\x05", 8); // modification time
+    header.append("\x00\x00\x03\xe8", 4); // timescale 1000
+    header.append("\x00\x00\x00\x00\x00\x36\xee\x80", 8); // duration 3600000 (1 hour)
+    // Pad remaining mvhd box up to 120 bytes
+    header.append(QByteArray(120 - 8 - 4 - 8 - 8 - 4 - 8, '\x00'));
+
+    // tkhd box Version 1 (64-bit dimensions)
+    // Structure:
+    // 4 bytes: size (150 bytes -> \x00\x00\x00\x96)
+    // 4 bytes: "tkhd"
+    // 1 byte: version = 1 (\x01)
+    // 3 bytes: flags (\x00\x00\x00)
+    // 84 bytes of padding (so that width starts at offset 92 from start of tkhd, i.e. offset 88 from version)
+    // 4 bytes: width (fixed point 16.16 -> 1920 -> \x07\x80\x00\x00)
+    // 4 bytes: height (fixed point 16.16 -> 1080 -> \x04\x38\x00\x00)
+    header.append("\x00\x00\x00\x96""tkhd", 8);
+    header.append("\x01\x00\x00\x00", 4); // version 1
+    header.append(QByteArray(84, '\x00'));
+    header.append("\x07\x80\x00\x00", 4); // 1920
+    header.append("\x04\x38\x00\x00", 4); // 1080
+    // Pad remainder
+    header.append(QByteArray(150 - 8 - 4 - 84 - 8, '\x00'));
+
+    QVERIFY(file.write(header) > 0);
+    file.close();
+
+    ExifReader reader;
+    QVariantMap data = reader.getExifData(path);
+    QCOMPARE(data["Make"].toString(), QString("Video File"));
+    QCOMPARE(data["Model"].toString(), QString("MPEG-4 Video (MP4 v1)"));
+    QCOMPARE(data["Dimensions"].toString(), QString("1920x1080"));
+    QCOMPARE(data["Duration"].toString(), QString("1h 00m"));
+}
+
+void TestExifReader::testCacheBackfillComplex()
+{
+    ExifDatabase db(":memory:");
+    QVERIFY(db.init());
+
+    ExifReader reader;
+    reader.setDatabase(&db);
+
+    QTemporaryDir tempDir;
+    QVERIFY(tempDir.isValid());
+
+    // 1. Mock Video file with partial cached record (missing Dimensions, Duration, and Model)
+    QString videoPath = tempDir.path() + "/backfill_video.mp4";
+    QFile vfile(videoPath);
+    QVERIFY(vfile.open(QIODevice::WriteOnly));
+    QByteArray vheader;
+    vheader.append("\x00\x00\x00\x14""ftypqt  \x00\x00\x00\x00qt  ", 20);
+    
+    // mvhd version 0
+    vheader.append("\x00\x00\x00\x6c""mvhd", 8);
+    vheader.append("\x00\x00\x00\x00", 4); // version 0
+    vheader.append("\x00\x00\x00\x05", 4); // creationSeconds
+    vheader.append("\x00\x00\x00\x05", 4); // modificationSeconds
+    vheader.append("\x00\x00\x03\xe8", 4); // timescale 1000
+    vheader.append("\x00\x00\x13\x88", 4); // duration 5000 (5s)
+    vheader.append(QByteArray(120 - 8 - 4 - 4 - 4 - 4 - 4, '\x00')); // remainder
+    
+    // tkhd version 0
+    // Width starts at offset 84 from tkhd start (offset 76 from version)
+    // Size (4) + Type (4) + Version/Flags (4) = 12 bytes.
+    // Padding should be 84 - 12 = 72 bytes.
+    vheader.append("\x00\x00\x00\x96""tkhd", 8);
+    vheader.append("\x00\x00\x00\x00", 4); // version 0
+    vheader.append(QByteArray(72, '\x00')); // padding
+    vheader.append("\x02\x80\x00\x00", 4); // 640
+    vheader.append("\x01\xe0\x00\x00", 4); // 480
+    vheader.append(QByteArray(150 - 8 - 4 - 72 - 8, '\x00'));
+    QVERIFY(vfile.write(vheader) > 0);
+    vfile.close();
+
+    QFileInfo vfi(videoPath);
+    QVariantMap cachedVideo;
+    cachedVideo["FileSize"] = "1.5 KB";
+    QVERIFY(db.saveExifData(videoPath, vfi.size(), vfi.lastModified(), cachedVideo));
+
+    // Call getExifData - should hit cache and backfill missing fields from the video file
+    QVariantMap backfilledVideo = reader.getExifData(videoPath);
+    QCOMPARE(backfilledVideo["Dimensions"].toString(), QString("640x480"));
+    QCOMPARE(backfilledVideo["Duration"].toString(), QString("5s"));
+    QCOMPARE(backfilledVideo["Model"].toString(), QString("QuickTime Movie (MOV)"));
+
+    // 2. Photo file with partial cached record (missing Dimensions and DateTime)
+    QString photoPath = tempDir.path() + "/backfill_photo.jpg";
+    QVERIFY(QFile::copy("data/canon-g9-x.jpg", photoPath));
+    QFileInfo pfi(photoPath);
+
+    QVariantMap cachedPhoto;
+    cachedPhoto["FileSize"] = "1.2 MB";
+    cachedPhoto["Make"] = "MockMake";
+    QVERIFY(db.saveExifData(photoPath, pfi.size(), pfi.lastModified(), cachedPhoto));
+
+    // Call getExifData - should hit cache and backfill missing photo dimensions and timestamp
+    QVariantMap backfilledPhoto = reader.getExifData(photoPath);
+    QCOMPARE(backfilledPhoto["Make"].toString(), QString("MockMake"));
+    QVERIFY(!backfilledPhoto["Dimensions"].toString().isEmpty());
+    QVERIFY(!backfilledPhoto["DateTime"].toString().isEmpty());
+}
+
+void TestExifReader::testEXIFLensFallbacks()
+{
+    QTemporaryDir tempDir;
+    QVERIFY(tempDir.isValid());
+    QString testJpg = tempDir.path() + "/lens_fallback.jpg";
+    QVERIFY(QFile::copy("data/fuji-xt30-18-55F28-4.jpeg", testJpg));
+
+    // Read fuji image, find LensModel string and replace it with null bytes
+    QFile file(testJpg);
+    QVERIFY(file.open(QIODevice::ReadWrite));
+    QByteArray buffer = file.readAll();
+    
+    // Fuji X-T30 writes "XF18-55mmF2.8-4 R LM OIS" in EXIF
+    int idx = buffer.indexOf("XF18-55mmF2.8-4 R LM OIS");
+    if (idx != -1) {
+        for (int i = 0; i < 24; ++i) {
+            buffer[idx + i] = 0;
+        }
+    }
+    // Also zero out manufacturer "FUJIFILM" to make LensMake empty
+    int idx2 = 0;
+    while ((idx2 = buffer.indexOf("FUJIFILM", idx2)) != -1) {
+        for (int i = 0; i < 8; ++i) {
+            buffer[idx2 + i] = 0;
+        }
+        idx2 += 8;
+    }
+    file.seek(0);
+    QVERIFY(file.write(buffer) > 0);
+    file.close();
+
+    ExifReader reader;
+    QVariantMap data = reader.getExifData(testJpg);
+    
+    // LensModel was zeroed out, so it must fall back to the min/max specifications in rational tags
+    QString lensInfo = data["Lens"].toString();
+    QVERIFY(!lensInfo.isEmpty());
+    QVERIFY(lensInfo.contains("18-55mm"));
+    QVERIFY(lensInfo.contains("f/2.8-4"));
 }
 
 QTEST_MAIN(TestExifReader)

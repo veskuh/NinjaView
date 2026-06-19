@@ -29,7 +29,7 @@ public slots:
     void qmlEngineAvailable(QQmlEngine *engine)
     {
         static Logger* logger = new Logger();
-        static ExifDatabase* exifDb = new ExifDatabase();
+        static ExifDatabase* exifDb = new ExifDatabase(":memory:");
         static bool dbInit = false;
         if (!dbInit) {
             exifDb->init();

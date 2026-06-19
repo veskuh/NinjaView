@@ -9,7 +9,7 @@ class ExifDatabase : public QObject
 {
     Q_OBJECT
 public:
-    explicit ExifDatabase(QObject *parent = nullptr);
+    explicit ExifDatabase(const QString &dbPath = QString(), QObject *parent = nullptr);
     ~ExifDatabase();
 
     bool init();

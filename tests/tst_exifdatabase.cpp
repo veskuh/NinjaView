@@ -20,7 +20,10 @@ void TestExifDatabase::initTestCase()
 
 void TestExifDatabase::testDatabaseOperations()
 {
-    ExifDatabase db;
+    QTemporaryDir tempDir;
+    QVERIFY(tempDir.isValid());
+    QString tempDbPath = tempDir.path() + "/test_exif.db";
+    ExifDatabase db(tempDbPath);
     QVERIFY(db.init());
 
     QString filePath = "/tmp/fake_image.jpg";
