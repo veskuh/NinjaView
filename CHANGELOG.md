@@ -5,24 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.7.0] - 2026-06-20
 
 ### Added
+- Added multi-file selection support in the gallery grid (`Cmd/Ctrl + Click`, `Shift + Click`, `Cmd/Ctrl + A`), allowing batch operations such as copy, lossless rotation, move to trash, and shared tag management.
+- Added "Show Only New" view filter (enabled on SD cards) to isolate and display only files not yet indexed in previous sessions.
+- Added macOS-exclusive "Import to Photos" action (available in File and right-click context menus) to import the selection or current filtered gallery view into Apple Photos.
+- Added "Quick Look" feature (`Space` key) to show or hide a high-resolution preview window overlay of the selected file.
+- Added interactive User Guide and Keyboard Shortcuts dialogs to help users navigate and master application features.
+- Isolated unit test database paths to avoid polluting/conflicting with the user's active database environment.
 - Updated the Kaakao submodule to integrate the latest UI component updates.
 - Added automatic filtering to ignore macOS system/development bundles, Xcode project directories, and Photos/Lightroom libraries (such as `.app`, `.framework`, `.plugin`, `.bundle`, `.xcassets`, `.xcodeproj`, `.xcworkspace`, `.photoslibrary`, and others) from folder and image scans.
 - Extended the scope bar header background and border continuously across the full window width, and aligned the custom media type filter control's background with it.
-
-### Fixed
-- Fixed text visibility contrast for the custom segmented control in light theme by matching its active styling and text color with `KaakaoSegmentedControl`'s design tokens.
-- Fixed Linux GStreamer thumbnail extraction pipeline crashes caused by command-line path parsing limitations, wrapping location parameters in double quotes via idiomatic `QString::arg()`.
-
-## [0.6.1] - 2026-06-14
-
-### Added
 - Added a slight delay before fullscreen video autoplayback starts to allow the transition/fade-in animation to complete cleanly.
 - Added key focus recovery on video player controls so that the Spacebar key consistently toggles play/pause.
 
 ### Fixed
+- Fixed text visibility contrast for the custom segmented control in light theme by matching its active styling and text color with `KaakaoSegmentedControl`'s design tokens.
+- Fixed Linux GStreamer thumbnail extraction pipeline crashes caused by command-line path parsing limitations, wrapping location parameters in double quotes via idiomatic `QString::arg()`.
 - Fixed directory scanning performance latency by skipping EXIF extraction on video files (preventing massive video files from being read into memory).
 - Fixed GStreamer subprocess execution to verify if gst-launch-1.0 started successfully, failing fast instead of wasting CPU loops if missing.
 
