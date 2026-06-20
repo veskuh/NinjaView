@@ -371,4 +371,63 @@ bool FileActionService::moveFilesToTrashBatch(const QStringList &filePaths)
     return allSuccess;
 }
 
+void FileActionService::importToApplePhotos(const QStringList &filePaths)
+{
+#ifdef Q_OS_MAC
+    if (filePaths.isEmpty()) {
+        emit importFinished(true, QString());
+        return;
+    }
+
+    // Filter out directories and non-existent files
+    QStringList posixFiles;
+    for (const QString &path : filePaths) {
+        QString localPath = path;
+        if (path.startsWith("file://")) {
+            localPath = QUrl(path).toLocalFile();
+        }
+        QFileInfo fi(localPath);
+        if (fi.exists() && !fi.isDir()) {
+            QString escapedPath = localPath;
+            escapedPath.replace("\"", "\\\"");
+            posixFiles << "POSIX file \"" + escapedPath + "\"";
+        }
+    }
+
+    if (posixFiles.isEmpty()) {
+        emit importFinished(false, "No valid media files found to import.");
+        return;
+    }
+
+    // Build the AppleScript
+    QString script = QString(
+        "tell application \"Photos\"\n"
+        "    import {%1}\n"
+        "end tell\n"
+    ).arg(posixFiles.join(", "));
+
+    // Run osascript asynchronously via QProcess
+    QProcess *process = new QProcess(this);
+    connect(process, &QProcess::finished, this, [this, process](int exitCode, QProcess::ExitStatus exitStatus) {
+        if (exitStatus == QProcess::NormalExit && exitCode == 0) {
+            emit importFinished(true, QString());
+        } else {
+            QString err = process->readAllStandardError();
+            if (err.isEmpty()) {
+                err = "AppleScript failed with exit code " + QString::number(exitCode);
+            }
+            emit importFinished(false, err.trimmed());
+        }
+        process->deleteLater();
+    });
+
+    process->start("osascript");
+    process->write(script.toUtf8());
+    process->closeWriteChannel();
+#else
+    Q_UNUSED(filePaths);
+    emit importFinished(false, "Import to Photos is only supported on macOS.");
+#endif
+}
+
 

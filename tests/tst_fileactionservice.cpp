@@ -41,6 +41,7 @@ private slots:
     void testMoveToTrashBatch();
     void testRotateImagesBatch();
     void testCopyToClipboardBatch();
+    void testImportToApplePhotos();
 };
 
 void TestFileActionService::testMoveToTrashLocalPath()
@@ -551,6 +552,38 @@ void TestFileActionService::testCopyToClipboardBatch()
     } else {
         qWarning() << "Clipboard not available.";
     }
+}
+
+void TestFileActionService::testImportToApplePhotos()
+{
+    FileActionService service;
+    QSignalSpy spy(&service, &FileActionService::importFinished);
+
+    // Test empty list
+    service.importToApplePhotos(QStringList());
+#ifdef Q_OS_MAC
+    QCOMPARE(spy.count(), 1);
+    QCOMPARE(spy.first().at(0).toBool(), true);
+    QCOMPARE(spy.first().at(1).toString(), QString());
+#else
+    QCOMPARE(spy.count(), 1);
+    QCOMPARE(spy.first().at(0).toBool(), false);
+    QCOMPARE(spy.first().at(1).toString(), "Import to Photos is only supported on macOS.");
+#endif
+
+    spy.clear();
+
+    // Test non-existent file list
+    service.importToApplePhotos({ "/nonexistent/photo.jpg" });
+#ifdef Q_OS_MAC
+    QCOMPARE(spy.count(), 1);
+    QCOMPARE(spy.first().at(0).toBool(), false);
+    QCOMPARE(spy.first().at(1).toString(), "No valid media files found to import.");
+#else
+    QCOMPARE(spy.count(), 1);
+    QCOMPARE(spy.first().at(0).toBool(), false);
+    QCOMPARE(spy.first().at(1).toString(), "Import to Photos is only supported on macOS.");
+#endif
 }
 
 QTEST_MAIN(TestFileActionService)

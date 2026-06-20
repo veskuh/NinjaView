@@ -614,4 +614,33 @@ TestCase {
         // Cleanup
         mainApp.galleryPanel.currentFolderPath = ""
     }
+
+    function test_import_to_photos() {
+        var action = findChild(mainApp, "importToPhotosAction")
+        verify(action !== null, "importToPhotosAction should be found")
+
+        var menuItem = findChild(mainApp, "importToPhotosMenuItem")
+        var expectedVisible = (Qt.platform.os === "osx")
+        if (expectedVisible) {
+            verify(menuItem !== null, "MenuItem should be found on macOS")
+        } else {
+            if (menuItem !== null) {
+                compare(menuItem.visible, false, "MenuItem should be invisible on non-macOS")
+            }
+        }
+
+        // 2. Initially disabled because count is 0
+        rawGalleryModel.clear()
+        mainApp.galleryPanel.currentIndex = -1
+        compare(action.enabled, false, "Action should be disabled when gallery is empty")
+
+        // 3. Enabled when gallery has items and an active selection/index
+        rawGalleryModel.addImages(["/tmp/photo1.jpg"])
+        mainApp.galleryPanel.currentIndex = 0
+        compare(action.enabled, true, "Action should be enabled when gallery has items")
+
+        // Cleanup
+        rawGalleryModel.clear()
+        mainApp.galleryPanel.currentIndex = -1
+    }
 }

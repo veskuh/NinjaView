@@ -178,6 +178,28 @@ KaakaoWindow {
     }
 
     Action {
+        id: importToPhotosAction
+        objectName: "importToPhotosAction"
+        text: qsTr("Import to Photos app...")
+        enabled: galleryPanel.currentIndex >= 0 && galleryModel.count > 0
+        onTriggered: {
+            let paths = []
+            if (galleryPanel.selectedCount > 0) {
+                paths = galleryPanel.getSelectedPathsList()
+            } else {
+                for (let i = 0; i < galleryModel.count; ++i) {
+                    if (!galleryModel.isFolder(i)) {
+                        paths.push(galleryModel.getRawPath(i))
+                    }
+                }
+            }
+            if (paths.length > 0) {
+                fileActionService.importToApplePhotos(paths)
+            }
+        }
+    }
+
+    Action {
         id: quickLookAction
         text: root.inlinePreviewActive ? qsTr("Close Preview") : qsTr("Quick Look")
         shortcut: "Space"
@@ -430,6 +452,11 @@ KaakaoWindow {
             title: qsTr("&File")
             MenuItem { action: addFolderAction }
             MenuItem { action: removeFolderAction }
+            MenuItem {
+                objectName: "importToPhotosMenuItem"
+                action: importToPhotosAction
+                visible: Qt.platform.os === "osx"
+            }
             MenuSeparator {}
             MenuItem { action: settingsAction }
             MenuSeparator {}
@@ -512,6 +539,27 @@ KaakaoWindow {
 
     UserGuideDialog {
         id: userGuideDialog
+    }
+
+    MessageDialog {
+        id: importResultDialog
+        title: qsTr("Import to Photos")
+        buttons: MessageDialog.Ok
+    }
+
+    Connections {
+        target: fileActionService
+        function onImportFinished(success, errorMessage) {
+            if (success) {
+                importResultDialog.text = qsTr("Import Completed")
+                importResultDialog.informativeText = qsTr("Media files have been successfully imported to Apple Photos.")
+                importResultDialog.open()
+            } else {
+                importResultDialog.text = qsTr("Import Failed")
+                importResultDialog.informativeText = errorMessage
+                importResultDialog.open()
+            }
+        }
     }
 
     MessageDialog {

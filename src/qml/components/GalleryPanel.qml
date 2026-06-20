@@ -267,6 +267,19 @@ Item {
             enabled: !galleryContextMenu.isMultiSelect
             onTriggered: fileActionService.openExternally(galleryContextMenu.targetPath)
         }
+        KaakaoMenuItem {
+            text: qsTr("Import to Photos app")
+            visible: Qt.platform.os === "osx"
+            onTriggered: {
+                let paths = []
+                if (galleryContextMenu.isMultiSelect) {
+                    paths = panel.getSelectedPathsList()
+                } else {
+                    paths = [galleryContextMenu.targetPath]
+                }
+                fileActionService.importToApplePhotos(paths)
+            }
+        }
         MenuSeparator {}
         KaakaoMenuItem {
             text: qsTr("Rotate Left")

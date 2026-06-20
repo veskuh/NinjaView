@@ -21,9 +21,11 @@ public:
     Q_INVOKABLE void copyToClipboardBatch(const QStringList &filePaths);
     Q_INVOKABLE int rotateImagesBatch(const QStringList &filePaths, int angle);
     Q_INVOKABLE bool moveFilesToTrashBatch(const QStringList &filePaths);
+    Q_INVOKABLE void importToApplePhotos(const QStringList &filePaths);
 
 signals:
     void imageRotated(const QString &filePath);
+    void importFinished(bool success, const QString &errorMessage);
 
 private:
     bool writeExifOrientation(const QString &filePath, int newOrientation);
