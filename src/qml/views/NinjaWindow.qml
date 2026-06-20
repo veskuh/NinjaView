@@ -168,6 +168,16 @@ KaakaoWindow {
     }
 
     Action {
+        id: showNewOnlyAction
+        objectName: "showNewOnlyAction"
+        text: qsTr("Show Only New")
+        checkable: true
+        checked: (typeof galleryModel !== "undefined" && galleryModel) ? galleryModel.showNewOnly : false
+        enabled: galleryPanel.currentFolderPath === "sd_card_device"
+        onTriggered: galleryModel.showNewOnly = checked
+    }
+
+    Action {
         id: quickLookAction
         text: root.inlinePreviewActive ? qsTr("Close Preview") : qsTr("Quick Look")
         shortcut: "Space"
@@ -462,6 +472,8 @@ KaakaoWindow {
                     onTriggered: galleryModel.mediaTypeFilter = "Videos"
                 }
             }
+            MenuSeparator {}
+            MenuItem { action: showNewOnlyAction }
             MenuSeparator {}
             MenuItem { action: toggleInfoAction }
         }

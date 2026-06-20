@@ -584,4 +584,34 @@ TestCase {
         // Cleanup
         rawGalleryModel.clear()
     }
+
+    function test_show_only_new() {
+        var action = findChild(mainApp, "showNewOnlyAction")
+        verify(action !== null, "showNewOnlyAction should be found")
+
+        // 1. Initially showNewOnly is false
+        compare(action.checked, false, "Action should be unchecked initially")
+        compare(galleryModel.showNewOnly, false, "showNewOnly property should be false initially")
+
+        // 2. Since currentFolderPath is empty, action is disabled
+        mainApp.galleryPanel.currentFolderPath = ""
+        compare(action.enabled, false, "Action should be disabled when not on SD card")
+
+        // 3. Set folder to SD card -> action becomes enabled
+        mainApp.galleryPanel.currentFolderPath = "sd_card_device"
+        compare(action.enabled, true, "Action should be enabled when on SD card")
+
+        // 4. Toggle action via trigger -> showNewOnly becomes true
+        action.trigger()
+        compare(galleryModel.showNewOnly, true, "galleryModel.showNewOnly should be true after toggling action")
+
+        // 5. Change folder path -> showNewOnly should auto-reset to false
+        mainApp.galleryPanel.currentFolderPath = "/some/other/folder"
+        compare(galleryModel.showNewOnly, false, "showNewOnly should reset to false on folder change")
+        compare(action.checked, false, "Action should be unchecked after folder change")
+        compare(action.enabled, false, "Action should be disabled again")
+
+        // Cleanup
+        mainApp.galleryPanel.currentFolderPath = ""
+    }
 }

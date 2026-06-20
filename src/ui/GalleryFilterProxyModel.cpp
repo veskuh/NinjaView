@@ -39,6 +39,7 @@ void GalleryFilterProxyModel::setCameraFilter(const QString &camera)
 void GalleryFilterProxyModel::setCurrentFolderPath(const QString &path)
 {
     if (m_currentFolderPath != path) {
+        m_newFiles.clear();
         m_currentFolderPath = path;
         emit currentFolderPathChanged();
         invalidateFilter();
@@ -63,8 +64,18 @@ void GalleryFilterProxyModel::setMediaTypeFilter(const QString &mediaType)
     }
 }
 
+void GalleryFilterProxyModel::setShowNewOnly(bool show)
+{
+    if (m_showNewOnly != show) {
+        m_showNewOnly = show;
+        emit showNewOnlyChanged();
+        invalidateFilter();
+    }
+}
+
 void GalleryFilterProxyModel::clear()
 {
+    m_newFiles.clear();
     auto srcModel = qobject_cast<GalleryListModel*>(sourceModel());
     if (srcModel) {
         srcModel->clear();
@@ -165,6 +176,21 @@ bool GalleryFilterProxyModel::filterAcceptsRow(int source_row, const QModelIndex
 
     QString filePath = srcModel->getRawPath(source_row);
     QFileInfo fileInfo(filePath);
+
+    // Apply showNewOnly filter (unindexed files are considered new)
+    bool isNewFile = false;
+    if (m_db) {
+        if (m_newFiles.contains(filePath)) {
+            isNewFile = true;
+        } else if (!m_db->isCached(filePath, fileInfo.size(), fileInfo.lastModified())) {
+            m_newFiles.insert(filePath);
+            isNewFile = true;
+        }
+    }
+
+    if (m_showNewOnly && !isNewFile) {
+        return false;
+    }
 
     // Apply smart folder type filtering (Pictures library has images only, Videos has movies only)
     if (m_currentFolderPath == "smart://pictures" || m_currentFolderPath == "smart://videos") {

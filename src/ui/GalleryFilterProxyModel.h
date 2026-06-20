@@ -3,6 +3,7 @@
 #include <QSortFilterProxyModel>
 #include <QString>
 #include <QDateTime>
+#include <QSet>
 
 class ExifDatabase;
 
@@ -14,6 +15,7 @@ class GalleryFilterProxyModel : public QSortFilterProxyModel
     Q_PROPERTY(QString currentFolderPath READ currentFolderPath WRITE setCurrentFolderPath NOTIFY currentFolderPathChanged)
     Q_PROPERTY(QString searchQuery READ searchQuery WRITE setSearchQuery NOTIFY searchQueryChanged)
     Q_PROPERTY(QString mediaTypeFilter READ mediaTypeFilter WRITE setMediaTypeFilter NOTIFY mediaTypeFilterChanged)
+    Q_PROPERTY(bool showNewOnly READ showNewOnly WRITE setShowNewOnly NOTIFY showNewOnlyChanged)
     Q_PROPERTY(int count READ rowCount NOTIFY countChanged)
 
 public:
@@ -33,6 +35,9 @@ public:
 
     QString mediaTypeFilter() const { return m_mediaTypeFilter; }
     void setMediaTypeFilter(const QString &mediaType);
+
+    bool showNewOnly() const { return m_showNewOnly; }
+    void setShowNewOnly(bool show);
 
     void setDatabase(ExifDatabase *db) { m_db = db; }
 
@@ -54,6 +59,7 @@ signals:
     void currentFolderPathChanged();
     void searchQueryChanged();
     void mediaTypeFilterChanged();
+    void showNewOnlyChanged();
     void countChanged();
 
 protected:
@@ -65,6 +71,8 @@ private:
     QString m_currentFolderPath{""};
     QString m_searchQuery{""};
     QString m_mediaTypeFilter{"All"};
+    bool m_showNewOnly{false};
+    mutable QSet<QString> m_newFiles;
     ExifDatabase *m_db{nullptr};
 
     bool matchDate(const QDateTime &dateTime, const QString &type) const;

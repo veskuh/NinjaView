@@ -1,6 +1,8 @@
 #include <QtTest>
 #include <QSignalSpy>
 #include <QTemporaryDir>
+#include <QFile>
+#include <QDir>
 #include "GalleryListModel.h"
 #include "GalleryFilterProxyModel.h"
 #include "ExifDatabase.h"
@@ -32,11 +34,29 @@ void TestGalleryFilterProxyModel::testFiltering()
     proxyModel.setSourceModel(&sourceModel);
     proxyModel.setDatabase(&db);
 
-    // Prepare paths
-    QString folderPath = "/tmp/test_dir";
-    QString fileToday = "/tmp/test_dir/today.jpg";
-    QString fileOld = "/tmp/test_dir/old.jpg";
-    QString filePng = "/tmp/test_dir/photo.png";
+    // Prepare paths using QTemporaryDir
+    QTemporaryDir tempDir(QDir::tempPath() + "/test_XXXXXX");
+    QVERIFY(tempDir.isValid());
+    QString folderPath = tempDir.path();
+    QString fileToday = folderPath + "/today.jpg";
+    QString fileOld = folderPath + "/old.jpg";
+    QString filePng = folderPath + "/photo.png";
+
+    // Write dummy files so their stats match reality
+    QFile fToday(fileToday);
+    QVERIFY(fToday.open(QIODevice::WriteOnly));
+    fToday.write("today");
+    fToday.close();
+
+    QFile fOld(fileOld);
+    QVERIFY(fOld.open(QIODevice::WriteOnly));
+    fOld.write("old");
+    fOld.close();
+
+    QFile fPng(filePng);
+    QVERIFY(fPng.open(QIODevice::WriteOnly));
+    fPng.write("png");
+    fPng.close();
 
     // Setup EXIF data in DB
     QDateTime now = QDateTime::currentDateTime();
@@ -57,10 +77,13 @@ void TestGalleryFilterProxyModel::testFiltering()
     exifPng["Model"] = "iPhone 15";
     exifPng["DateTime"] = now.toString("yyyy:MM:dd HH:mm:ss");
 
-    // Cache the data in db
-    QVERIFY(db.saveExifData(fileToday, 1000, now, exifToday));
-    QVERIFY(db.saveExifData(fileOld, 2000, oldDate, exifOld));
-    QVERIFY(db.saveExifData(filePng, 3000, now, exifPng));
+    // Cache the data in db using actual file stats
+    QFileInfo infoToday(fileToday);
+    QFileInfo infoOld(fileOld);
+    QFileInfo infoPng(filePng);
+    QVERIFY(db.saveExifData(fileToday, infoToday.size(), infoToday.lastModified(), exifToday));
+    QVERIFY(db.saveExifData(fileOld, infoOld.size(), infoOld.lastModified(), exifOld));
+    QVERIFY(db.saveExifData(filePng, infoPng.size(), infoPng.lastModified(), exifPng));
 
     // Populate source model: 1 folder, 3 files
     sourceModel.addFolders({folderPath});
@@ -96,7 +119,7 @@ void TestGalleryFilterProxyModel::testFiltering()
     }
 
     // Test getAvailableFiltersForFolder
-    QVariantMap filters = db.getAvailableFiltersForFolder("/tmp/test_dir");
+    QVariantMap filters = db.getAvailableFiltersForFolder(folderPath);
     QVERIFY(filters.value("hasToday").toBool());
     QVERIFY(filters.value("hasThisWeek").toBool());
     
@@ -138,7 +161,7 @@ void TestGalleryFilterProxyModel::testFiltering()
     QCOMPARE(proxyModel.getRawPath(0), folderPath);
 
     // Test camera query
-    QStringList cameras = db.getUniqueCamerasForFolder("/tmp/test_dir");
+    QStringList cameras = db.getUniqueCamerasForFolder(folderPath);
     QVERIFY(cameras.contains("Canon EOS R5"));
     QVERIFY(cameras.contains("Sony A7RIV"));
     QVERIFY(cameras.contains("Apple iPhone 15"));
@@ -205,7 +228,6 @@ void TestGalleryFilterProxyModel::testFiltering()
 
     // 2. Match folder by name
     proxyModel.setSearchQuery("test");
-    // "test_dir" matches. Filenames today.jpg, old.jpg, photo.png do not.
     QCOMPARE(proxyModel.rowCount(), 1);
     QCOMPARE(proxyModel.getRawPath(0), folderPath);
 
@@ -236,6 +258,47 @@ void TestGalleryFilterProxyModel::testFiltering()
     proxyModel.setSearchQuery("");
     proxyModel.setFilterType("All");
     QCOMPARE(proxyModel.rowCount(), 4);
+
+    // Test showNewOnly filter
+    QSignalSpy showNewOnlySpy(&proxyModel, &GalleryFilterProxyModel::showNewOnlyChanged);
+    QVERIFY(!proxyModel.showNewOnly());
+
+    proxyModel.setShowNewOnly(true);
+    QVERIFY(proxyModel.showNewOnly());
+    QCOMPARE(showNewOnlySpy.count(), 1);
+
+    // In db, fileToday, fileOld, filePng are already cached.
+    // Let's add a new image file that is NOT cached (so it should be considered new).
+    QString fileNew = folderPath + "/new_photo.jpg";
+    QFile fNew(fileNew);
+    QVERIFY(fNew.open(QIODevice::WriteOnly));
+    fNew.write("new");
+    fNew.close();
+
+    sourceModel.addImages({fileNew});
+
+    // With showNewOnly == true:
+    // folderPath should be accepted (folders are always accepted, unless smart:// folder)
+    // fileNew is not cached -> accepted
+    // fileToday, fileOld, filePng are cached -> rejected
+    // Total count should be 2: folderPath and fileNew
+    QCOMPARE(proxyModel.rowCount(), 2);
+    QCOMPARE(proxyModel.getRawPath(0), folderPath);
+    QCOMPARE(proxyModel.getRawPath(1), fileNew);
+
+    // Now, simulate background indexer indexing fileNew:
+    QFileInfo infoNew(fileNew);
+    QVERIFY(db.saveExifData(fileNew, infoNew.size(), infoNew.lastModified(), exifToday));
+    // Since it's already in the session's m_newFiles set, calling invalidateFilter()
+    // should still keep it visible under showNewOnly == true!
+    proxyModel.setShowNewOnly(true);
+    QCOMPARE(proxyModel.rowCount(), 2);
+    QCOMPARE(proxyModel.getRawPath(1), fileNew);
+
+    // Turn showNewOnly off
+    proxyModel.setShowNewOnly(false);
+    QCOMPARE(showNewOnlySpy.count(), 2);
+    QCOMPARE(proxyModel.rowCount(), 5);
 }
 
 void TestGalleryFilterProxyModel::testVideoFiltering()

@@ -87,6 +87,7 @@ Item {
         galleryModel.filterType = "All";
         galleryModel.cameraFilter = "";
         galleryModel.mediaTypeFilter = "All";
+        galleryModel.showNewOnly = false;
         panel.clearSelection();
         panel.updateFilters();
     }
@@ -125,6 +126,7 @@ Item {
         target: typeof discoveryService !== "undefined" ? discoveryService : null
         function onIndexingFinished() {
             panel.updateFilters();
+            galleryModel.invalidateFilter();
         }
     }
 
