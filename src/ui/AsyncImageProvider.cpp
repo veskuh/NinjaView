@@ -1,5 +1,6 @@
 #include "AsyncImageProvider.h"
 #include "Logger.h"
+#include "VideoFrameExtractor.h"
 #include <QImageReader>
 #include <QQuickTextureFactory>
 #include <QDebug>
@@ -10,68 +11,6 @@
 #include <QDirIterator>
 #include <QCryptographicHash>
 #include <QFileInfo>
-
-#ifdef Q_OS_MAC
-QImage extractVideoFrameMac(const QString &filePath);
-#endif
-
-#ifdef Q_OS_LINUX
-#include <QProcess>
-#include <QThread>
-QImage extractVideoFrameLinux(const QString &filePath)
-{
-    QString tempFile = QDir::tempPath() + "/ninjaview_thumb_" + QCryptographicHash::hash(filePath.toUtf8(), QCryptographicHash::Md5).toHex() + ".jpg";
-    if (QFile::exists(tempFile)) {
-        QFile::remove(tempFile);
-    }
-    
-    QString escapedPath = filePath;
-    escapedPath.replace("\"", "\\\"");
-    QString escapedTemp = tempFile;
-    escapedTemp.replace("\"", "\\\"");
-
-    QProcess process;
-    QStringList args;
-    args << "filesrc" << QString("location=\"%1\"").arg(escapedPath)
-         << "!" << "decodebin"
-         << "!" << "videoconvert"
-         << "!" << "jpegenc"
-         << "!" << "filesink" << QString("location=\"%1\"").arg(escapedTemp);
-         
-    process.start("gst-launch-1.0", args);
-    if (!process.waitForStarted(200)) {
-        qWarning() << "GStreamer: Failed to start process gst-launch-1.0. Check if GStreamer is installed and in PATH.";
-        return QImage();
-    }
-    
-    bool success = false;
-    for (int i = 0; i < 40; ++i) { // 2000ms max
-        QThread::msleep(50);
-        if (QFile::exists(tempFile) && QFileInfo(tempFile).size() > 0) {
-            success = true;
-            break;
-        }
-        if (process.state() == QProcess::NotRunning) {
-            break;
-        }
-    }
-    
-    process.kill();
-    process.waitForFinished(500);
-    
-    if (!success) {
-        qDebug() << "GStreamer pipeline failed. Output:" << process.readAllStandardOutput();
-        qDebug() << "GStreamer pipeline error:" << process.readAllStandardError();
-    }
-    
-    QImage img;
-    if (success && QFile::exists(tempFile)) {
-        img.load(tempFile);
-        QFile::remove(tempFile);
-    }
-    return img;
-}
-#endif
 
 static QMutex s_cacheMutex;
 
@@ -161,11 +100,7 @@ void AsyncImageResponse::run()
     QString ext = QFileInfo(cleanPath).suffix().toLower();
     bool isVideo = (ext == "mp4" || ext == "mov");
     if (isVideo) {
-#ifdef Q_OS_MAC
-        m_image = extractVideoFrameMac(cleanPath);
-#elif defined(Q_OS_LINUX)
-        m_image = extractVideoFrameLinux(cleanPath);
-#endif
+        m_image = VideoFrameExtractor::extractFrame(cleanPath);
         if (!m_image.isNull()) {
             QImage diskCachedImage = m_image;
             if (diskCacheSize.isValid()) {

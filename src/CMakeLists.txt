@@ -1,6 +1,8 @@
 set(PLATFORM_SOURCES)
 if(APPLE)
-    list(APPEND PLATFORM_SOURCES ui/VideoThumbnailMac.mm)
+    list(APPEND PLATFORM_SOURCES ui/VideoFrameExtractorMac.mm)
+elseif(UNIX AND NOT APPLE)
+    list(APPEND PLATFORM_SOURCES ui/VideoFrameExtractorLinux.cpp)
 endif()
 
 # Move QML and core logic to a library

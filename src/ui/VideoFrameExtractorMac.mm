@@ -1,10 +1,11 @@
 #import <AVFoundation/AVFoundation.h>
 #import <CoreMedia/CoreMedia.h>
 #import <AppKit/AppKit.h>
+#include "VideoFrameExtractor.h"
 #include <QImage>
 #include <QString>
 
-QImage extractVideoFrameMac(const QString &filePath) {
+QImage VideoFrameExtractor::extractFrame(const QString &filePath) {
     @autoreleasepool {
         NSURL *url = [NSURL fileURLWithPath:filePath.toNSString()];
         AVURLAsset *asset = [AVURLAsset URLAssetWithURL:url options:nil];
