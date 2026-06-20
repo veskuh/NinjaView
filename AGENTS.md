@@ -1,7 +1,7 @@
 This is a repository for NinjaView. An app for previewing images from SD card, from digital cameras.
 
 Language: C++, Qt, QML for UI
-Libraries: Qt6 (6.4.2+, with qtimageformats for WebP), Kaakao component set (submodule) for appearance.
+Libraries: Qt6 (6.8.0+, with qtimageformats for WebP), Kaakao component set (submodule) for appearance.
 
 Target platforms: Mac (x86 & arm), Linux (x86)
 
@@ -48,7 +48,7 @@ Packaging:
 - Linux: Uses CPack to generate DEB and RPM packages.
   - Kaakao backing library is packaged under the private app directory (`/usr/lib/ninjaview/`) to avoid system-wide pollution.
   - Kaakaoplugin and QML files are packaged under `/usr/lib/ninjaview/qml/`.
-  - In CI, builds are packaged inside stable LTS containers (Ubuntu 24.04 and Fedora 40) to target compatible system-provided Qt6 versions.
+  - In CI, builds are packaged inside modern containers (Ubuntu 25.04 and Fedora 41) to target compatible system-provided Qt6 versions (Qt 6.8+).
 - macOS: Uses `macdeployqt` to bundle dependencies inside the standalone `NinjaView.app` bundle.
 
 Engineering Guidelines:

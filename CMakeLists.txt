@@ -47,7 +47,7 @@ set(CMAKE_AUTOUIC ON)
 # Standard QML output directory for easier discovery in build tree
 set(QT_QML_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/qml)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2 Core5Compat ShaderTools Concurrent Test QuickTest QuickDialogs2 Sql Multimedia)
+find_package(Qt6 6.8 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2 Core5Compat ShaderTools Concurrent Test QuickTest QuickDialogs2 Sql Multimedia)
 
 # Workaround for official Qt 6.8.3 on modern macOS SDKs complaining about missing AGL framework
 if(APPLE AND TARGET WrapOpenGL::WrapOpenGL)

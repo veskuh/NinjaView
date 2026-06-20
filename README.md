@@ -34,7 +34,7 @@ NinjaView is a simple C++/Qt6 image and video viewer designed for previewing fil
 
 ### Prerequisites
 
-- Qt 6.4.2+ (with optional ImageFormats module for WebP support, and QtMultimedia module for video playback)
+- Qt 6.8.0+ (with optional ImageFormats module for WebP support, and QtMultimedia module for video playback)
 - CMake 3.16+
 - C++17
 - On Linux, GStreamer (specifically `gstreamer1.0-plugins-base`, `gstreamer1.0-plugins-good`, and `gstreamer1.0-libav`) is required for video decoding and thumbnail generation.
