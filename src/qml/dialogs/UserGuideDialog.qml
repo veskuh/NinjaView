@@ -149,6 +149,24 @@ KaakaoWindow {
                 }
 
                 KaakaoLabel {
+                    text: qsTr("Import to Apple Photos (macOS)")
+                    font.bold: true
+                    role: KaakaoLabel.Primary
+                    Layout.fillWidth: true
+                    Layout.topMargin: 10
+                    visible: Qt.platform.os === "osx"
+                }
+
+                KaakaoLabel {
+                    text: qsTr("On macOS, you can import media directly into your Apple Photos library. Choose <b>Import to Photos</b> from the <b>File</b> menu or the right-click context menu. If you have files selected, only those items will be imported. If there is no selection, all files currently visible in the gallery view (respecting search query, date, camera, and \"Show Only New\" filters) will be imported.")
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    role: KaakaoLabel.Secondary
+                    textFormat: Text.RichText
+                    visible: Qt.platform.os === "osx"
+                }
+
+                KaakaoLabel {
                     text: qsTr("Video Playback & Media Types")
                     font.bold: true
                     role: KaakaoLabel.Primary
@@ -165,7 +183,7 @@ KaakaoWindow {
                 }
 
                 KaakaoLabel {
-                    text: qsTr("SD Card Auto-Detection")
+                    text: qsTr("SD Card Auto-Detection & \"Show Only New\" Filter")
                     font.bold: true
                     role: KaakaoLabel.Primary
                     Layout.fillWidth: true
@@ -173,7 +191,8 @@ KaakaoWindow {
                 }
 
                 KaakaoLabel {
-                    text: qsTr("Triage newly captured photos directly from your digital camera using NinjaView's plug-and-play volume monitoring. When a camera's SD card is inserted, the application detects the device and automatically refreshes your workspace, making manual directory navigation unnecessary.")
+                    text: qsTr("Triage newly captured photos directly from your digital camera using NinjaView's plug-and-play volume monitoring. When a camera's SD card is inserted, the application detects the device and automatically refreshes your workspace, making manual directory navigation unnecessary.<br>"
+                               + "While viewing the SD Card, you can enable the <b>Show Only New</b> option under the <b>View</b> menu to isolate only files that have not yet been indexed in previous sessions. As background metadata indexing finishes, files will dynamically clear from this view. The filter automatically resets when you switch folders.")
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
                     role: KaakaoLabel.Secondary

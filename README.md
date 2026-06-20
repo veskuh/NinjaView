@@ -10,19 +10,23 @@ NinjaView is a simple C++/Qt6 image and video viewer designed for previewing fil
 - Support for images and video formats (JPEG, WebP, MP4, and MOV).
 - Separate "Pictures" and "Videos" sidebar library navigation.
 - Category scope bar filters for both pictures and videos.
+- "Show Only New" filter under the View menu (enabled on SD cards) to show only files not yet indexed in previous sessions.
+- "Import to Photos" action (macOS only) available via File menu or right-click context menu to import the selection or current filtered view into Apple Photos.
 - Automatic filtering to ignore macOS system/development bundles, Xcode project directories, and Photos/Lightroom libraries (such as `.app`, `.framework`, `.plugin`, `.bundle`, `.xcassets`, `.xcodeproj`, `.xcworkspace`, `.photoslibrary`, `.photolibrary`, `.aplibrary`, `.lrweb`) to keep the media gallery clean.
-- Double-click any file to enter fullscreen preview mode.
+- Quick Look: Press `Space` to instantly toggle a high-resolution preview overlay of the selected image/video.
+- Multi-File Selection: Select multiple files in the gallery grid using standard modifier keys (`Cmd/Ctrl + Click`, `Shift + Click`, or `Cmd/Ctrl + A`). Batch operations (Copy, Rotate, Trash, and Tagging) apply to the entire active selection.
+- Double-click any file or press `Return` to enter fullscreen preview mode.
 - Interactive video playback controls: play/pause button overlay, click-to-toggle play/pause.
 - Smart fullscreen behavior:
   - Mouse cursor auto-hides during video playback inactivity and reappears on mouse movement.
   - Video autoplay when navigating between video files in fullscreen using arrow keys.
 - Lossless JPEG rotation (modifies the EXIF orientation metadata on disk; falls back to session-only in-memory rotation on write-protected files such as camera SD cards).
 - Full keyboard support:
-  - Arrow keys for cycling through files.
-  - `Escape` to exit fullscreen view.
-  - `Ctrl + [` and `Ctrl + ]` to rotate JPEGs left/right in the gallery grid.
-  - `L` and `R` keys to rotate JPEGs left/right in fullscreen preview mode.
-  - Touchpad scrolling for navigation.
+  - **Navigation**: Arrow keys to cycle, `Space` for Quick Look, `Return` to enter fullscreen, `Escape` to exit fullscreen or clear selection, `F5` to refresh.
+  - **Editing/Actions**: `Cmd/Ctrl + [` and `Cmd/Ctrl + ]` to rotate JPEGs (also supports `L` and `R` in fullscreen), `Delete`/`Backspace` to move to trash.
+  - **File Operations**: `Cmd/Ctrl + C` to copy to clipboard, `Cmd/Ctrl + O` to open with default app, `Cmd/Ctrl + R` to reveal in Finder/File Manager.
+  - **Zooming**: `Cmd/Ctrl + +` / `Cmd/Ctrl + -` to zoom in/out, `Cmd/Ctrl + 0` to reset.
+  - **UI Controls**: `Cmd/Ctrl + I` to toggle the EXIF Info/Metadata panel, `Cmd/Ctrl + ,` to open Preferences.
 - Classic Mac OS X inspired interface using custom QML components.
 - C++17 and Qt6 for performance and stability.
 
