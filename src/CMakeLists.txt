@@ -36,12 +36,17 @@ qt_add_qml_module(NinjaViewLib
         qml/components/SidebarModel.qml
         qml/components/NinjaToolBar.qml
         qml/components/GalleryPanel.qml
+        qml/components/GalleryGridDelegate.qml
+        qml/components/GalleryContextMenu.qml
+        qml/components/MediaTypeFilter.qml
+        qml/components/GalleryEmptyState.qml
         qml/components/ImageInfoPanel.qml
         qml/components/ExifOverlay.qml
         qml/dialogs/SettingsWindow.qml
         qml/dialogs/AboutDialog.qml
         qml/dialogs/KeyboardShortcutsDialog.qml
         qml/dialogs/UserGuideDialog.qml
+        qml/dialogs/DeleteConfirmationDialog.qml
     RESOURCES
         ../assets/ninja-icon.png
     DEPENDENCIES
