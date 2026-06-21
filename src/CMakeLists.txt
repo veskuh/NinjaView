@@ -30,11 +30,15 @@ qt_add_qml_module(NinjaViewLib
     QML_FILES
         qml/views/NinjaWindow.qml
         qml/views/PreviewOverlay.qml
+        qml/views/ModelResolver.js
         qml/components/ZoomableImage.qml
+        qml/components/VideoPlayerPanel.qml
         qml/components/InlinePreviewPanel.qml
         qml/components/SidebarPanel.qml
         qml/components/SidebarModel.qml
         qml/components/NinjaToolBar.qml
+        qml/components/NinjaActions.qml
+        qml/components/NinjaMenuBar.qml
         qml/components/GalleryPanel.qml
         qml/components/GalleryGridDelegate.qml
         qml/components/GalleryContextMenu.qml

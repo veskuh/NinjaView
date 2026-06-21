@@ -64,6 +64,40 @@ KaakaoWindow {
         return path.endsWith(".jpg") || path.endsWith(".jpeg");
     }
 
+    function canRotateSelection() {
+        if (galleryPanel.selectedCount > 0) {
+            let paths = galleryPanel.getSelectedPathsList();
+            for (let i = 0; i < paths.length; ++i) {
+                let p = paths[i].toLowerCase();
+                if (p.endsWith(".jpg") || p.endsWith(".jpeg")) return true;
+            }
+            return false;
+        }
+        let idx = previewOverlay.visible ? previewOverlay.currentIndex : galleryPanel.currentIndex;
+        return root.isJpegFile(idx);
+    }
+
+    function rotateSelection(angle) {
+        if (galleryPanel.selectedCount > 0) {
+            let paths = galleryPanel.getSelectedPathsList();
+            let jpegs = [];
+            for (let i = 0; i < paths.length; ++i) {
+                let p = paths[i].toLowerCase();
+                if (p.endsWith(".jpg") || p.endsWith(".jpeg")) {
+                    jpegs.push(paths[i]);
+                }
+            }
+            if (jpegs.length > 0) {
+                fileActionService.rotateImagesBatch(jpegs, angle)
+                for (let i = 0; i < jpegs.length; ++i) {
+                    root.forceRefreshImage(jpegs[i]);
+                }
+            }
+        } else {
+            root.rotateImage(angle)
+        }
+    }
+
     // Backwards-compatibility alias for testing
     property alias sidebarModel: sidebarPanel.sidebarModel
 
@@ -73,456 +107,22 @@ KaakaoWindow {
         }
     }
 
-    // Actions
-    Action {
-        id: addFolderAction
-        text: qsTr("Add Folder...")
-        onTriggered: sidebarPanel.triggerFolderDialog()
+    NinjaActions {
+        id: actions
+        rootWindow: root
+        galleryPanel: galleryPanel
+        sidebarPanel: sidebarPanel
+        previewOverlay: previewOverlay
+        settingsWindow: settingsWindow
+        aboutDialog: aboutDialog
+        keyboardShortcutsDialog: keyboardShortcutsDialog
+        userGuideDialog: userGuideDialog
+        appSettings: appSettings
+        inlinePreviewPanel: inlinePreviewPanel
     }
 
-    Action {
-        id: removeFolderAction
-        text: qsTr("Remove Folder")
-        enabled: {
-            if (sidebarPanel.currentIndex < 0 || sidebarPanel.currentIndex >= sidebarPanel.sidebarModel.count) return false;
-            let item = sidebarPanel.sidebarModel.get(sidebarPanel.currentIndex);
-            return item.category === qsTr("Folders") && item.path !== undefined;
-        }
-        onTriggered: sidebarPanel.triggerRemove(sidebarPanel.currentIndex)
-    }
-
-    Action {
-        id: refreshAction
-        text: qsTr("&Refresh")
-        shortcut: "F5"
-        onTriggered: {
-            galleryModel.clear()
-            root.loading = true
-            let item = sidebarPanel.currentIndex >= 0 ? sidebarPanel.sidebarModel.get(sidebarPanel.currentIndex) : null
-            if (item) {
-                if (item.name === qsTr("Pictures") || item.name === "Pictures") {
-                    discoveryService.scanDirectory("smart://pictures")
-                } else if (item.name === qsTr("Videos") || item.name === "Videos") {
-                    discoveryService.scanDirectory("smart://videos")
-                } else if (item.name === qsTr("SD Card") || item.name === "SD Card") {
-                    if (volumeMonitor.sdCardPath !== "") {
-                        discoveryService.scanDirectory(volumeMonitor.sdCardPath + "/DCIM", true)
-                    }
-                } else if (item.path !== undefined && item.path !== "") {
-                    discoveryService.scanDirectory(item.path, false)
-                }
-            }
-        }
-    }
-
-    Action {
-        id: settingsAction
-        text: qsTr("&Settings...")
-        shortcut: "Ctrl+,"
-        onTriggered: settingsWindow.show()
-    }
-
-    Action {
-        id: aboutAction
-        text: qsTr("&About")
-        onTriggered: aboutDialog.show()
-    }
-
-    Action {
-        id: quitAction
-        text: qsTr("&Quit")
-        shortcut: "Ctrl+Q"
-        onTriggered: Qt.quit()
-    }
-
-    Action {
-        id: zoomInAction
-        text: qsTr("Zoom In")
-        shortcut: "Ctrl+="
-        enabled: !previewOverlay.visible
-        onTriggered: appSettings.thumbnailSize = Math.min(600, appSettings.thumbnailSize + 50)
-    }
-
-    Action {
-        id: zoomOutAction
-        text: qsTr("Zoom Out")
-        shortcut: "Ctrl+-"
-        enabled: !previewOverlay.visible
-        onTriggered: appSettings.thumbnailSize = Math.max(200, appSettings.thumbnailSize - 50)
-    }
-
-    Action {
-        id: actualSizeAction
-        text: qsTr("Default Size")
-        shortcut: "Ctrl+0"
-        enabled: !previewOverlay.visible
-        onTriggered: appSettings.thumbnailSize = 200
-    }
-
-    Action {
-        id: toggleInfoAction
-        text: root.showMainInfo ? qsTr("Hide &Info") : qsTr("Show &Info")
-        shortcut: "Ctrl+I"
-        enabled: galleryPanel.currentIndex >= 0 && galleryModel.count > 0
-        onTriggered: root.showMainInfo = !root.showMainInfo
-    }
-
-    Action {
-        id: showNewOnlyAction
-        objectName: "showNewOnlyAction"
-        text: qsTr("Show Only New")
-        checkable: true
-        checked: (typeof galleryModel !== "undefined" && galleryModel) ? galleryModel.showNewOnly : false
-        enabled: galleryPanel.currentFolderPath === "sd_card_device"
-        onTriggered: galleryModel.showNewOnly = checked
-    }
-
-    Action {
-        id: importToPhotosAction
-        objectName: "importToPhotosAction"
-        text: qsTr("Import to Photos app...")
-        enabled: galleryPanel.currentIndex >= 0 && galleryModel.count > 0
-        onTriggered: {
-            let paths = []
-            if (galleryPanel.selectedCount > 0) {
-                paths = galleryPanel.getSelectedPathsList()
-            } else {
-                for (let i = 0; i < galleryModel.count; ++i) {
-                    if (!galleryModel.isFolder(i)) {
-                        paths.push(galleryModel.getRawPath(i))
-                    }
-                }
-            }
-            if (paths.length > 0) {
-                fileActionService.importToApplePhotos(paths)
-            }
-        }
-    }
-
-    Action {
-        id: quickLookAction
-        text: root.inlinePreviewActive ? qsTr("Close Preview") : qsTr("Quick Look")
-        shortcut: "Space"
-        enabled: !previewOverlay.visible && galleryPanel.selectedCount <= 1 && galleryPanel.currentIndex >= 0 && !galleryModel.isFolder(galleryPanel.currentIndex)
-        onTriggered: {
-            if (root.inlinePreviewActive) {
-                root.inlinePreviewActive = false
-                galleryPanel.gridView.forceActiveFocus()
-            } else {
-                root.inlinePreviewActive = true
-                inlinePreviewPanel.forceActiveFocus()
-            }
-        }
-    }
-
-    Action {
-        id: rotateLeftAction
-        text: qsTr("Rotate Counterclockwise")
-        shortcut: "Ctrl+["
-        enabled: {
-            if (galleryPanel.selectedCount > 0) {
-                let paths = galleryPanel.getSelectedPathsList();
-                for (let i = 0; i < paths.length; ++i) {
-                    let p = paths[i].toLowerCase();
-                    if (p.endsWith(".jpg") || p.endsWith(".jpeg")) return true;
-                }
-                return false;
-            }
-            let idx = previewOverlay.visible ? previewOverlay.currentIndex : galleryPanel.currentIndex
-            return root.isJpegFile(idx)
-        }
-        onTriggered: {
-            if (galleryPanel.selectedCount > 0) {
-                let paths = galleryPanel.getSelectedPathsList();
-                let jpegs = [];
-                for (let i = 0; i < paths.length; ++i) {
-                    let p = paths[i].toLowerCase();
-                    if (p.endsWith(".jpg") || p.endsWith(".jpeg")) {
-                        jpegs.push(paths[i]);
-                    }
-                }
-                if (jpegs.length > 0) {
-                    fileActionService.rotateImagesBatch(jpegs, 270)
-                }
-            } else {
-                root.rotateImage(270)
-            }
-        }
-    }
-
-    Action {
-        id: rotateRightAction
-        text: qsTr("Rotate Clockwise")
-        shortcut: "Ctrl+]"
-        enabled: {
-            if (galleryPanel.selectedCount > 0) {
-                let paths = galleryPanel.getSelectedPathsList();
-                for (let i = 0; i < paths.length; ++i) {
-                    let p = paths[i].toLowerCase();
-                    if (p.endsWith(".jpg") || p.endsWith(".jpeg")) return true;
-                }
-                return false;
-            }
-            let idx = previewOverlay.visible ? previewOverlay.currentIndex : galleryPanel.currentIndex
-            return root.isJpegFile(idx)
-        }
-        onTriggered: {
-            if (galleryPanel.selectedCount > 0) {
-                let paths = galleryPanel.getSelectedPathsList();
-                let jpegs = [];
-                for (let i = 0; i < paths.length; ++i) {
-                    let p = paths[i].toLowerCase();
-                    if (p.endsWith(".jpg") || p.endsWith(".jpeg")) {
-                        jpegs.push(paths[i]);
-                    }
-                }
-                if (jpegs.length > 0) {
-                    fileActionService.rotateImagesBatch(jpegs, 90)
-                }
-            } else {
-                root.rotateImage(90)
-            }
-        }
-    }
-
-    Action {
-        id: showInFolderAction
-        text: qsTr("Show in Finder")
-        shortcut: "Ctrl+R"
-        enabled: !previewOverlay.visible && galleryPanel.currentIndex >= 0 && galleryPanel.selectedCount <= 1
-        onTriggered: {
-            let path = galleryModel.getRawPath(galleryPanel.currentIndex)
-            fileActionService.showInFolder(path)
-        }
-    }
-
-    Action {
-        id: deleteAction
-        text: qsTr("Move to Trash")
-        shortcut: "Delete"
-        enabled: {
-            if (galleryPanel.selectedCount > 0) return true
-            return !previewOverlay.visible && galleryPanel.currentIndex >= 0 && !galleryModel.isFolder(galleryPanel.currentIndex)
-        }
-        onTriggered: {
-            if (galleryPanel.selectedCount > 0) {
-                let paths = galleryPanel.getSelectedPathsList();
-                if (appSettings.confirmDeletions) {
-                    galleryPanel.triggerDeleteBatch(paths);
-                } else {
-                    if (fileActionService.moveFilesToTrashBatch(paths)) {
-                        let indices = [];
-                        for (let i = 0; i < galleryModel.count; ++i) {
-                            if (paths.indexOf(galleryModel.getRawPath(i)) !== -1) {
-                                indices.push(i);
-                            }
-                        }
-                        indices.sort(function(a, b) { return b - a; });
-                        indices.forEach(function(idx) {
-                            galleryModel.removeImage(idx);
-                        });
-                        galleryPanel.clearSelection();
-                    }
-                }
-            } else {
-                let index = galleryPanel.currentIndex
-                let path = galleryModel.getRawPath(index)
-                let name = galleryModel.getFileName(index)
-                if (appSettings.confirmDeletions) {
-                    galleryPanel.triggerDelete(index, path, name)
-                } else {
-                    if (fileActionService.moveToTrash(path)) {
-                        galleryModel.removeImage(index)
-                    }
-                }
-            }
-        }
-    }
-
-    Action {
-        id: fullscreenPreviewAction
-        text: qsTr("Show Fullscreen")
-        shortcut: "Return"
-        enabled: !previewOverlay.visible && galleryPanel.selectedCount <= 1 && galleryPanel.currentIndex >= 0 && !galleryModel.isFolder(galleryPanel.currentIndex)
-        onTriggered: {
-            previewOverlay.currentIndex = galleryPanel.currentIndex
-            previewOverlay.visible = true
-        }
-    }
-
-    Action {
-        id: openExternallyAction
-        text: qsTr("Open with Default Application")
-        shortcut: "Ctrl+O"
-        enabled: !previewOverlay.visible && galleryPanel.currentIndex >= 0 && !galleryModel.isFolder(galleryPanel.currentIndex) && galleryPanel.selectedCount <= 1
-        onTriggered: {
-            let path = galleryModel.getRawPath(galleryPanel.currentIndex)
-            fileActionService.openExternally(path)
-        }
-    }
-
-    Action {
-        id: copyAction
-        text: qsTr("Copy")
-        shortcut: "Ctrl+C"
-        enabled: {
-            if (galleryPanel.selectedCount > 0) return true
-            let idx = previewOverlay.visible ? previewOverlay.currentIndex : galleryPanel.currentIndex
-            return idx >= 0 && !galleryModel.isFolder(idx)
-        }
-        onTriggered: {
-            if (galleryPanel.selectedCount > 0) {
-                fileActionService.copyToClipboardBatch(galleryPanel.getSelectedPathsList())
-            } else {
-                let idx = previewOverlay.visible ? previewOverlay.currentIndex : galleryPanel.currentIndex
-                let path = galleryModel.getRawPath(idx)
-                fileActionService.copyToClipboard(path)
-            }
-        }
-    }
-
-    Action {
-        id: userGuideAction
-        text: qsTr("User Guide")
-        onTriggered: userGuideDialog.show()
-    }
-
-    Action {
-        id: keyboardShortcutsAction
-        text: qsTr("Keyboard Shortcuts")
-        onTriggered: keyboardShortcutsDialog.show()
-    }
-
-
-    // Global helper shortcuts (bridged for alternative key sequences & compatibility)
-    Shortcut {
-        id: galleryShortcut
-        objectName: "galleryShortcut"
-        onActivated: quickLookAction.triggered(quickLookAction)
-    }
-
-    Shortcut {
-        id: deleteShortcut
-        objectName: "deleteShortcut"
-        onActivated: deleteAction.triggered(deleteAction)
-    }
-
-    Shortcut {
-        sequence: "Backspace"
-        enabled: deleteAction.enabled && galleryPanel.gridView.activeFocus
-        onActivated: deleteAction.trigger()
-    }
-
-    Shortcut {
-        sequence: "Ctrl++"
-        enabled: zoomInAction.enabled
-        onActivated: zoomInAction.trigger()
-    }
-
-    Shortcut {
-        sequence: "Enter"
-        enabled: fullscreenPreviewAction.enabled && galleryPanel.gridView.activeFocus
-        onActivated: fullscreenPreviewAction.trigger()
-    }
-
-    Shortcut {
-        sequence: "Ctrl+A"
-        context: Qt.WindowShortcut
-        onActivated: {
-            if (galleryPanel.gridView.activeFocus) {
-                galleryPanel.selectAll()
-            }
-        }
-    }
-
-    Shortcut {
-        sequence: "Escape"
-        context: Qt.WindowShortcut
-        enabled: !previewOverlay.visible && !root.inlinePreviewActive && galleryPanel.selectedCount > 0
-        onActivated: {
-            if (galleryPanel.selectedCount > 0) {
-                galleryPanel.clearSelection()
-            }
-        }
-    }
-
-    // Menu Bar
-    menuBar: MenuBar {
-        Menu {
-            title: qsTr("&File")
-            MenuItem { action: addFolderAction }
-            MenuItem { action: removeFolderAction }
-            MenuItem {
-                objectName: "importToPhotosMenuItem"
-                action: importToPhotosAction
-                visible: Qt.platform.os === "osx"
-            }
-            MenuSeparator {}
-            MenuItem { action: settingsAction }
-            MenuSeparator {}
-            MenuItem { action: quitAction }
-        }
-        Menu {
-            title: qsTr("&Edit")
-            MenuItem { action: copyAction }
-            MenuItem { action: rotateLeftAction }
-            MenuItem { action: rotateRightAction }
-            MenuSeparator {}
-            MenuItem { action: deleteAction }
-        }
-        Menu {
-            title: qsTr("&View")
-            MenuItem { action: refreshAction }
-            MenuSeparator {}
-            MenuItem { action: zoomInAction }
-            MenuItem { action: zoomOutAction }
-            MenuItem { action: actualSizeAction }
-            MenuSeparator {}
-            Menu {
-                title: qsTr("Media Type")
-                MenuItem {
-                    text: qsTr("Show All")
-                    checkable: true
-                    checked: (typeof galleryModel !== "undefined" && galleryModel) ? galleryModel.mediaTypeFilter === "All" : true
-                    onTriggered: galleryModel.mediaTypeFilter = "All"
-                }
-                MenuItem {
-                    text: qsTr("Images")
-                    checkable: true
-                    checked: (typeof galleryModel !== "undefined" && galleryModel) ? galleryModel.mediaTypeFilter === "Photos" : false
-                    onTriggered: galleryModel.mediaTypeFilter = "Photos"
-                }
-                MenuItem {
-                    text: qsTr("Videos")
-                    checkable: true
-                    checked: (typeof galleryModel !== "undefined" && galleryModel) ? galleryModel.mediaTypeFilter === "Videos" : false
-                    onTriggered: galleryModel.mediaTypeFilter = "Videos"
-                }
-            }
-            MenuSeparator {}
-            MenuItem { action: showNewOnlyAction }
-            MenuSeparator {}
-            MenuItem { action: toggleInfoAction }
-        }
-        Menu {
-            title: qsTr("&Image")
-            MenuItem { action: quickLookAction }
-            MenuItem { action: fullscreenPreviewAction }
-            MenuItem { action: openExternallyAction }
-            MenuSeparator {}
-            MenuItem { action: rotateRightAction }
-            MenuItem { action: rotateLeftAction }
-            MenuSeparator {}
-            MenuItem { action: showInFolderAction }
-            MenuItem { action: deleteAction }
-        }
-        Menu {
-            title: qsTr("&Help")
-            MenuItem { action: userGuideAction }
-            MenuItem { action: keyboardShortcutsAction }
-            MenuSeparator {}
-            MenuItem { action: aboutAction }
-        }
+    menuBar: NinjaMenuBar {
+        actions: actions
     }
 
     SettingsWindow {

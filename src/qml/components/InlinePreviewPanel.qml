@@ -19,14 +19,14 @@ Item {
 
     onVisibleChanged: {
         if (!visible) {
-            mediaPlayer.stop()
+            videoPlayer.stop()
         } else if (isCurrentVideo) {
-            mediaPlayer.play()
+            videoPlayer.play()
         }
     }
 
     onCurrentIndexChanged: {
-        mediaPlayer.stop()
+        videoPlayer.stop()
     }
 
     function resolveImageUrl(path) {
@@ -97,108 +97,15 @@ Item {
         source: (root.currentImagePath && !root.isCurrentVideo) ? root.resolveImageUrl(root.currentImagePath) : ""
     }
 
-    Item {
-        id: videoPlayerContainer
+    // Reusable Video Player Panel
+    VideoPlayerPanel {
+        id: videoPlayer
         anchors.fill: parent
         visible: root.isCurrentVideo && root.currentImagePath !== ""
-
-        MediaPlayer {
-            id: mediaPlayer
-            objectName: "mediaPlayer"
-            audioOutput: AudioOutput {}
-            videoOutput: videoOutput
-            source: (root.visible && root.currentImagePath && root.isCurrentVideo) ? "file://" + root.currentImagePath : ""
-            loops: MediaPlayer.Infinite
-            Component.onCompleted: {
-                if (root.visible && root.isCurrentVideo) play()
-            }
-            onSourceChanged: {
-                if (root.visible && root.isCurrentVideo && source != "") play()
-            }
-        }
-
-        VideoOutput {
-            id: videoOutput
-            anchors.fill: parent
-            fillMode: VideoOutput.PreserveAspectFit
-        }
-
-        Rectangle {
-            id: controlsPanel
-            anchors.bottom: parent.bottom
-            anchors.horizontalCenter: parent.horizontalCenter
-            anchors.bottomMargin: 16
-            width: Math.min(parent.width - 64, 480)
-            height: 48
-            radius: 24
-            color: "#CC1C1C1C"
-            border.color: "#20FFFFFF"
-            z: 10
-
-            RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: 16
-                anchors.rightMargin: 16
-                spacing: 12
-
-                Rectangle {
-                    id: playPauseButton
-                    width: 28
-                    height: 28
-                    radius: 14
-                    color: playPauseMouse.pressed ? "#30FFFFFF" : (playPauseMouse.containsMouse ? "#15FFFFFF" : "transparent")
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: mediaPlayer.playbackState !== MediaPlayer.PlayingState ? "▶" : "⏸"
-                        color: "white"
-                        font.pixelSize: 12
-                    }
-
-                    MouseArea {
-                        id: playPauseMouse
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        onClicked: {
-                            if (mediaPlayer.playbackState === MediaPlayer.PlayingState) {
-                                mediaPlayer.pause()
-                            } else {
-                                mediaPlayer.play()
-                            }
-                        }
-                    }
-                }
-
-                Slider {
-                    id: seekBar
-                    Layout.fillWidth: true
-                    from: 0
-                    to: mediaPlayer.duration
-                    focusPolicy: Qt.NoFocus
-                    onMoved: mediaPlayer.position = value
-
-                    Binding {
-                        target: seekBar
-                        property: "value"
-                        value: mediaPlayer.position
-                    }
-                }
-
-                KaakaoLabel {
-                    text: root.formatTime(mediaPlayer.position) + " / " + root.formatTime(mediaPlayer.duration)
-                    color: "white"
-                    font.pixelSize: 11
-                }
-            }
-        }
-    }
-
-    function formatTime(ms) {
-        if (isNaN(ms) || ms < 0) return "0:00"
-        let totalSecs = Math.floor(ms / 1000)
-        let mins = Math.floor(totalSecs / 60)
-        let secs = totalSecs % 60
-        return mins + ":" + (secs < 10 ? "0" : "") + secs
+        path: root.currentImagePath
+        active: root.visible
+        autoplay: true
+        autoplayDelay: 0
     }
 
     focus: true
