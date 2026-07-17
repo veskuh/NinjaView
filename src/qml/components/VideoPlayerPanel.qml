@@ -67,10 +67,34 @@ Item {
         objectName: "mediaPlayer"
         audioOutput: AudioOutput {}
         videoOutput: videoOutput
-        source: (root.active && root.path !== "") ? "file://" + root.path : ""
+        source: {
+            if (!root.active || root.path === "") return "";
+            if (root.path.startsWith("file://") || root.path.startsWith("qrc:/")) {
+                return root.path;
+            }
+            // Correctly format and percent-encode the file path to form a valid file URL.
+            // This is crucial for files located on external volumes or paths containing spaces and special characters.
+            return "file://" + root.path.split('/').map(encodeURIComponent).join('/');
+        }
         loops: MediaPlayer.Infinite
 
+        onErrorOccurred: (error, errorString) => {
+            console.log("MediaPlayer error:", error, errorString, "for path:", root.path)
+            if (typeof logger !== "undefined") {
+                logger.log("MediaPlayer error (" + error + "): " + errorString + " (path: " + root.path + ")", "Video")
+            }
+        }
+
+        onMediaStatusChanged: {
+            if (typeof logger !== "undefined" && root.active) {
+                logger.log("MediaPlayer status changed to: " + mediaStatus + " for path: " + root.path, "Video")
+            }
+        }
+
         onSourceChanged: {
+            if (typeof logger !== "undefined" && source != "") {
+                logger.log("MediaPlayer source changed to: " + source, "Video")
+            }
             if (root.active && source != "") {
                 if (root.autoplay) {
                     if (root.autoplayDelay > 0) {
@@ -89,6 +113,56 @@ Item {
         id: videoOutput
         anchors.fill: parent
         fillMode: VideoOutput.PreserveAspectFit
+    }
+
+    // Error Overlay
+    Rectangle {
+        id: errorOverlay
+        anchors.fill: parent
+        color: "#E6000000" // slightly transparent black
+        visible: root.hasError && root.path !== ""
+        z: 5
+
+        ColumnLayout {
+            anchors.centerIn: parent
+            width: Math.min(parent.width - 40, 360)
+            spacing: 16
+
+            Text {
+                Layout.alignment: Qt.AlignHCenter
+                text: "⚠️"
+                font.pixelSize: 48
+            }
+
+            KaakaoLabel {
+                Layout.alignment: Qt.AlignHCenter
+                text: qsTr("Playback Failed")
+                font.bold: true
+                font.pixelSize: 16
+                color: "#FF6B6B"
+            }
+
+            KaakaoLabel {
+                Layout.alignment: Qt.AlignHCenter
+                text: root.errorString || qsTr("An unknown error occurred during playback.")
+                font.pixelSize: 13
+                color: "#CCCCCC"
+                wrapMode: Text.WordWrap
+                horizontalAlignment: Text.AlignHCenter
+                Layout.fillWidth: true
+            }
+
+            KaakaoButton {
+                Layout.alignment: Qt.AlignHCenter
+                text: qsTr("Open in Default App")
+
+                onClicked: {
+                    if (typeof fileActionService !== "undefined") {
+                        fileActionService.openExternally(root.path)
+                    }
+                }
+            }
+        }
     }
 
     // Glassmorphic Player Controls Overlay
