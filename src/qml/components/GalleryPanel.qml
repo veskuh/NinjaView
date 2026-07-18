@@ -477,6 +477,7 @@ Item {
             KaakaoTableColumn {
                 title: qsTr("Name")
                 role: "name"
+                defaultSortOrder: Qt.AscendingOrder
                 width: typeof appSettings !== "undefined" ? appSettings.nameColumnWidth : 300
                 minWidth: 100
                 onWidthChanged: {
@@ -488,6 +489,7 @@ Item {
             KaakaoTableColumn {
                 title: qsTr("Dimensions")
                 role: "dimensions"
+                defaultSortOrder: Qt.DescendingOrder
                 width: typeof appSettings !== "undefined" ? appSettings.dimsColumnWidth : 90
                 minWidth: 60
                 onWidthChanged: {
@@ -499,6 +501,7 @@ Item {
             KaakaoTableColumn {
                 title: qsTr("Date")
                 role: "date"
+                defaultSortOrder: Qt.DescendingOrder
                 width: typeof appSettings !== "undefined" ? appSettings.dateColumnWidth : 150
                 minWidth: 80
                 onWidthChanged: {
@@ -510,6 +513,7 @@ Item {
             KaakaoTableColumn {
                 title: qsTr("Size")
                 role: "size"
+                defaultSortOrder: Qt.DescendingOrder
                 width: typeof appSettings !== "undefined" ? appSettings.sizeColumnWidth : 70
                 minWidth: 50
                 onWidthChanged: {
