@@ -37,6 +37,9 @@ MenuBar {
         MenuItem { action: actions.zoomOutAction }
         MenuItem { action: actions.actualSizeAction }
         MenuSeparator {}
+        MenuItem { action: actions.gridViewAction }
+        MenuItem { action: actions.listViewAction }
+        MenuSeparator {}
         Menu {
             title: qsTr("Media Type")
             MenuItem {

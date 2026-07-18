@@ -38,6 +38,7 @@ Testing:
 
 Features:
 - Native support for images and videos (MP4 and MOV formats).
+- Switchable gallery views: thumbnail grid and sortable metadata list with adjustable row height, with persisted preferences.
 - Immersive Fullscreen Preview (double-click image/video) with keyboard navigation and fullscreen player controls.
 - Smart fullscreen interactions (video autoplay on navigation, automatic cursor hiding on inactivity).
 - Asynchronous image decoding, caching, and EXIF metadata extraction.

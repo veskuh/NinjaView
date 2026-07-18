@@ -11,6 +11,14 @@ GalleryFilterProxyModel::GalleryFilterProxyModel(QObject *parent)
     connect(this, &QAbstractItemModel::rowsInserted, this, &GalleryFilterProxyModel::countChanged);
     connect(this, &QAbstractItemModel::rowsRemoved, this, &GalleryFilterProxyModel::countChanged);
     connect(this, &QAbstractItemModel::modelReset, this, &GalleryFilterProxyModel::countChanged);
+
+    // Sorting is applied explicitly via sort(); with dynamic sorting disabled the
+    // order survives the invalidateFilter() calls made by the individual filter setters.
+    setDynamicSortFilter(false);
+
+    // Natural filename ordering: case-insensitive, numeric-aware ("img2" < "img10")
+    m_collator.setCaseSensitivity(Qt::CaseInsensitive);
+    m_collator.setNumericMode(true);
 }
 
 int GalleryFilterProxyModel::rowCount(const QModelIndex &parent) const
@@ -71,6 +79,30 @@ void GalleryFilterProxyModel::setShowNewOnly(bool show)
         emit showNewOnlyChanged();
         invalidateFilter();
     }
+}
+
+void GalleryFilterProxyModel::setSortBy(const QString &sortBy)
+{
+    if (sortBy != "name" && sortBy != "date" && sortBy != "size" && sortBy != "dimensions") {
+        return;
+    }
+    if (m_sortBy != sortBy) {
+        m_sortBy = sortBy;
+        emit sortByChanged();
+    }
+    // (Re)apply sorting even if the key stayed the same, so the first
+    // header click engages sorting from the unsorted initial state.
+    sort(0, m_sortOrder);
+}
+
+void GalleryFilterProxyModel::setSortOrder(int order)
+{
+    Qt::SortOrder newOrder = (order == Qt::DescendingOrder) ? Qt::DescendingOrder : Qt::AscendingOrder;
+    if (m_sortOrder != newOrder) {
+        m_sortOrder = newOrder;
+        emit sortOrderChanged();
+    }
+    sort(0, m_sortOrder);
 }
 
 void GalleryFilterProxyModel::clear()
@@ -327,6 +359,54 @@ bool GalleryFilterProxyModel::matchDate(const QDateTime &dateTime, const QString
         return (date.month() == current.month() && date.year() == current.year());
     }
     return true;
+}
+
+bool GalleryFilterProxyModel::lessThan(const QModelIndex &source_left, const QModelIndex &source_right) const
+{
+    const QAbstractItemModel *src = sourceModel();
+    if (!src) {
+        return QSortFilterProxyModel::lessThan(source_left, source_right);
+    }
+
+    const bool leftFolder = src->data(source_left, GalleryListModel::IsFolderRole).toBool();
+    const bool rightFolder = src->data(source_right, GalleryListModel::IsFolderRole).toBool();
+    // Folders stay on top in both sort orders
+    if (leftFolder != rightFolder) {
+        return m_sortOrder == Qt::AscendingOrder ? leftFolder : rightFolder;
+    }
+
+    if (m_sortBy == "size") {
+        const qint64 leftSize = src->data(source_left, GalleryListModel::FileSizeRole).toLongLong();
+        const qint64 rightSize = src->data(source_right, GalleryListModel::FileSizeRole).toLongLong();
+        if (leftSize != rightSize) {
+            return leftSize < rightSize;
+        }
+    } else if (m_sortBy == "date") {
+        const QDateTime leftDate = src->data(source_left, GalleryListModel::LastModifiedRole).toDateTime();
+        const QDateTime rightDate = src->data(source_right, GalleryListModel::LastModifiedRole).toDateTime();
+        if (leftDate != rightDate) {
+            return leftDate < rightDate;
+        }
+    } else if (m_sortBy == "dimensions") {
+        QString leftVal, rightVal;
+        if (m_db) {
+            bool leftVideo = src->data(source_left, GalleryListModel::IsVideoRole).toBool();
+            QVariantMap leftExif = m_db->getExifData(src->data(source_left, GalleryListModel::RawPathRole).toString());
+            leftVal = leftVideo ? leftExif.value("Duration").toString() : leftExif.value("Dimensions").toString();
+
+            bool rightVideo = src->data(source_right, GalleryListModel::IsVideoRole).toBool();
+            QVariantMap rightExif = m_db->getExifData(src->data(source_right, GalleryListModel::RawPathRole).toString());
+            rightVal = rightVideo ? rightExif.value("Duration").toString() : rightExif.value("Dimensions").toString();
+        }
+        if (leftVal != rightVal) {
+            return m_collator.compare(leftVal, rightVal) < 0;
+        }
+    }
+
+    // Primary key for "name", deterministic tie-break for the other keys
+    const QString leftName = src->data(source_left, GalleryListModel::FileNameRole).toString();
+    const QString rightName = src->data(source_right, GalleryListModel::FileNameRole).toString();
+    return m_collator.compare(leftName, rightName) < 0;
 }
 
 void GalleryFilterProxyModel::invalidateFilter()

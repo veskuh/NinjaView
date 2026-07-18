@@ -61,7 +61,7 @@ public slots:
         }
 
         static FileActionService* fileActionService = new FileActionService();
-        static AsyncImageProvider* imageProvider = new AsyncImageProvider(logger);
+        AsyncImageProvider* imageProvider = new AsyncImageProvider(logger);
         
         static bool connectionsDone = false;
         if (!connectionsDone) {

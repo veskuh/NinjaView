@@ -180,10 +180,24 @@ KaakaoWindow {
         property int maxMemoryCacheSizeMB: 2048
         property bool confirmDeletions: true
         property int thumbnailSize: 200
+        property string viewMode: "grid"
+        property int listRowHeight: 28
+        property int nameColumnWidth: 300
+        property int dimsColumnWidth: 90
+        property int dateColumnWidth: 150
+        property int sizeColumnWidth: 70
     }
 
-    function getCurrentFolderPath() {
-        if (root.currentFolderDescription.startsWith("smart://")) {
+    function navigateToFolder(path, name) {
+        root.currentTitle = name
+        root.currentFolderDescription = path
+        sidebarPanel.sidebar.currentIndex = -1
+        galleryModel.clear()
+        root.loading = true
+        discoveryService.scanDirectory(path, false)
+    }
+
+    function getCurrentFolderPath() {        if (root.currentFolderDescription.startsWith("smart://")) {
             return root.currentFolderDescription;
         }
         if (typeof sidebarPanel !== "undefined" && sidebarPanel && sidebarPanel.blockNavigation) {
@@ -315,16 +329,19 @@ KaakaoWindow {
                     previewOverlayVisible: previewOverlay.visible || root.inlinePreviewActive
                     showMainInfo: root.showMainInfo
                     thumbnailSize: appSettings.thumbnailSize
-                    
+                    listRowHeight: appSettings.listRowHeight
+                    viewMode: appSettings.viewMode
+
                     onRotateImage: (angle) => root.rotateImage(angle)
                     onToggleShowMainInfo: root.showMainInfo = !root.showMainInfo
+                    onViewModeRequested: (mode) => {
+                        appSettings.viewMode = mode
+                    }
+                    onListRowHeightChanged: {
+                        appSettings.listRowHeight = listRowHeight
+                    }
                     onPathClicked: (fullPath, name) => {
-                        root.currentTitle = name
-                        root.currentFolderDescription = fullPath
-                        sidebarPanel.sidebar.currentIndex = -1
-                        galleryModel.clear()
-                        root.loading = true
-                        discoveryService.scanDirectory(fullPath, false)
+                        root.navigateToFolder(fullPath, name)
                     }
                     onThumbnailSizeChanged: {
                         appSettings.thumbnailSize = thumbnailSize
@@ -343,6 +360,8 @@ KaakaoWindow {
                     currentFolderPath: root.getCurrentFolderPath()
                     folderSelections: root.folderSelections
                     thumbnailSize: appSettings.thumbnailSize
+                    viewMode: appSettings.viewMode
+                    listRowHeight: appSettings.listRowHeight
 
                     onFolderSelectionsUpdated: (selections) => {
                         root.folderSelections = selections
@@ -358,12 +377,25 @@ KaakaoWindow {
                         if (path.startsWith("file://")) {
                             localPath = path.substring(7)
                         }
-                        root.currentTitle = name
-                        root.currentFolderDescription = localPath
-                        sidebarPanel.sidebar.currentIndex = -1
-                        galleryModel.clear()
-                        root.loading = true
-                        discoveryService.scanDirectory(localPath, false)
+                        root.navigateToFolder(localPath, name)
+                    }
+
+                    onParentFolderRequested: {
+                        let folderKey = root.getCurrentFolderPath()
+                        if (folderKey === "" || folderKey.startsWith("smart://") || folderKey === "sd_card_device") {
+                            return
+                        }
+                        let current = folderKey
+                        if (current.endsWith("/") && current.length > 1) {
+                            current = current.substring(0, current.length - 1)
+                        }
+                        let idx = current.lastIndexOf("/")
+                        if (idx <= 0) {
+                            return // already at filesystem root
+                        }
+                        let parentPath = current.substring(0, idx)
+                        let name = parentPath.substring(parentPath.lastIndexOf("/") + 1)
+                        root.navigateToFolder(parentPath, name)
                     }
                 }
 

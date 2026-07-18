@@ -41,6 +41,7 @@ qt_add_qml_module(NinjaViewLib
         qml/components/NinjaMenuBar.qml
         qml/components/GalleryPanel.qml
         qml/components/GalleryGridDelegate.qml
+        qml/components/GalleryListDelegate.qml
         qml/components/GalleryContextMenu.qml
         qml/components/MediaTypeFilter.qml
         qml/components/GalleryEmptyState.qml

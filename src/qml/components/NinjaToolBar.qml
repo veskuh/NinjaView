@@ -14,10 +14,13 @@ KaakaoToolBar {
     required property bool previewOverlayVisible
     required property bool showMainInfo
     property int thumbnailSize: 200
+    property int listRowHeight: 28
+    property string viewMode: "grid"
 
     signal rotateImage(int angle)
     signal toggleShowMainInfo()
     signal pathClicked(string fullPath, string name)
+    signal viewModeRequested(string mode)
 
     function isJpegFile(idx) {
         if (idx < 0 || !galleryModel || idx >= galleryModel.count || galleryModel.isFolder(idx)) {
@@ -127,6 +130,25 @@ KaakaoToolBar {
             KaakaoToolTip { visible: parent.hovered; text: qsTr("Show or hide the image info panel") }
         }
 
+        KaakaoSegmentedControl {
+            id: viewModeControl
+            objectName: "viewModeControl"
+            model: [qsTr("Grid"), qsTr("List")]
+            visible: !toolbar.previewOverlayVisible
+            Layout.alignment: Qt.AlignVCenter
+            onCurrentIndexChanged: {
+                toolbar.viewModeRequested(currentIndex === 1 ? "list" : "grid")
+            }
+
+            Binding {
+                target: viewModeControl
+                property: "currentIndex"
+                value: toolbar.viewMode === "list" ? 1 : 0
+            }
+
+            KaakaoToolTip { visible: parent.hovered; text: qsTr("Switch between grid and list view") }
+        }
+
         RowLayout {
             spacing: 2
             Layout.alignment: Qt.AlignVCenter
@@ -147,12 +169,31 @@ KaakaoToolBar {
                 implicitWidth: 100
                 leftPadding: 4
                 rightPadding: 4
+                visible: toolbar.viewMode === "grid"
                 onMoved: toolbar.thumbnailSize = value
 
                 Binding {
                     target: zoomSlider
                     property: "value"
                     value: toolbar.thumbnailSize
+                }
+            }
+
+            KaakaoSlider {
+                id: rowHeightSlider
+                objectName: "rowHeightSlider"
+                from: 24
+                to: 48
+                implicitWidth: 100
+                leftPadding: 4
+                rightPadding: 4
+                visible: toolbar.viewMode === "list"
+                onMoved: toolbar.listRowHeight = value
+
+                Binding {
+                    target: rowHeightSlider
+                    property: "value"
+                    value: toolbar.listRowHeight
                 }
             }
 

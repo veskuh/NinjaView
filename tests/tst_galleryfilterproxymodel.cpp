@@ -15,6 +15,7 @@ private slots:
     void initTestCase();
     void testFiltering();
     void testVideoFiltering();
+    void testSorting();
 };
 
 void TestGalleryFilterProxyModel::initTestCase()
@@ -360,6 +361,139 @@ void TestGalleryFilterProxyModel::testVideoFiltering()
 
     proxyModel.setMediaTypeFilter("All");
     QCOMPARE(proxyModel.rowCount(), 4);
+}
+
+void TestGalleryFilterProxyModel::testSorting()
+{
+    ExifDatabase db(":memory:");
+    QVERIFY(db.init());
+    QVERIFY(db.clear());
+
+    GalleryListModel sourceModel;
+    GalleryFilterProxyModel proxyModel;
+    proxyModel.setSourceModel(&sourceModel);
+    proxyModel.setDatabase(&db);
+
+    QTemporaryDir tempDir(QDir::tempPath() + "/sort_XXXXXX");
+    QVERIFY(tempDir.isValid());
+    const QString folderPath = tempDir.path();
+
+    // Files with deliberately "unsorted" insertion order, distinct sizes and mtimes
+    const QString fileB = folderPath + "/b10.jpg"; // natural order: b2 < b10
+    const QString fileA = folderPath + "/b2.jpg";
+    const QString fileC = folderPath + "/alpha.png";
+
+    auto writeFile = [](const QString &path, qint64 size) {
+        QFile f(path);
+        if (!f.open(QIODevice::WriteOnly))
+            return false;
+        f.write(QByteArray(size, 'x'));
+        f.close();
+        return true;
+    };
+    QVERIFY(writeFile(fileB, 100));
+    QVERIFY(writeFile(fileA, 300));
+    QVERIFY(writeFile(fileC, 200));
+
+    const QDateTime now = QDateTime::currentDateTime();
+    auto setMtime = [&](const QString &path, const QDateTime &dt) {
+        QFile f(path);
+        if (!f.open(QIODevice::ReadOnly))
+            return false;
+        return f.setFileTime(dt, QFileDevice::FileModificationTime);
+    };
+    QVERIFY(setMtime(fileA, now.addDays(-1)));
+    QVERIFY(setMtime(fileB, now.addDays(-2)));
+    QVERIFY(setMtime(fileC, now.addDays(-3)));
+
+    QVariantMap exifA, exifB, exifC;
+    exifA["Dimensions"] = "1920x1080";
+    exifB["Dimensions"] = "800x600";
+    exifC["Dimensions"] = "1024x768";
+    QVERIFY(db.saveExifData(fileA, 300, now.addDays(-1), exifA));
+    QVERIFY(db.saveExifData(fileB, 100, now.addDays(-2), exifB));
+    QVERIFY(db.saveExifData(fileC, 200, now.addDays(-3), exifC));
+
+    sourceModel.addFolders({folderPath});
+    sourceModel.addImages({fileB, fileA, fileC});
+
+    // Initially unsorted: insertion order is preserved (folder, B, A, C)
+    QCOMPARE(proxyModel.rowCount(), 4);
+    QCOMPARE(proxyModel.getRawPath(1), fileB);
+
+    // Invalid sort key is rejected and leaves state unchanged
+    QSignalSpy sortBySpy(&proxyModel, &GalleryFilterProxyModel::sortByChanged);
+    proxyModel.setSortBy("bogus");
+    QCOMPARE(proxyModel.sortBy(), QString("name"));
+    QCOMPARE(sortBySpy.count(), 0);
+
+    // --- Name, ascending: folders first, then alpha with natural numeric order ---
+    proxyModel.setSortBy("name");
+    proxyModel.setSortOrder(Qt::AscendingOrder);
+    qDebug() << "ORDER" << proxyModel.sortColumn() << proxyModel.sortOrder()
+             << proxyModel.getRawPath(0) << proxyModel.getRawPath(1)
+             << proxyModel.getRawPath(2) << proxyModel.getRawPath(3);
+    qDebug() << "AGAIN" << proxyModel.getRawPath(0) << proxyModel.getRawPath(1)
+             << proxyModel.getRawPath(2) << proxyModel.getRawPath(3);
+    QCOMPARE(proxyModel.getRawPath(0), folderPath);
+    QCOMPARE(proxyModel.getRawPath(1), fileC); // alpha.png
+    QCOMPARE(proxyModel.getRawPath(2), fileA); // b2
+    QCOMPARE(proxyModel.getRawPath(3), fileB); // b10
+
+    // --- Name, descending: folders stay first, then reverse ---
+    proxyModel.setSortOrder(Qt::DescendingOrder);
+    QCOMPARE(proxyModel.getRawPath(0), folderPath);
+    QCOMPARE(proxyModel.getRawPath(1), fileB);
+    QCOMPARE(proxyModel.getRawPath(2), fileA);
+    QCOMPARE(proxyModel.getRawPath(3), fileC);
+
+    // --- Size ascending ---
+    proxyModel.setSortBy("size");
+    proxyModel.setSortOrder(Qt::AscendingOrder);
+    QCOMPARE(proxyModel.getRawPath(1), fileB); // 100
+    QCOMPARE(proxyModel.getRawPath(2), fileC); // 200
+    QCOMPARE(proxyModel.getRawPath(3), fileA); // 300
+
+    // --- Size descending ---
+    proxyModel.setSortOrder(Qt::DescendingOrder);
+    QCOMPARE(proxyModel.getRawPath(1), fileA); // 300
+    QCOMPARE(proxyModel.getRawPath(2), fileC); // 200
+    QCOMPARE(proxyModel.getRawPath(3), fileB); // 100
+
+    // --- Date ascending (oldest first) ---
+    proxyModel.setSortBy("date");
+    proxyModel.setSortOrder(Qt::AscendingOrder);
+    QCOMPARE(proxyModel.getRawPath(1), fileC); // -3 days
+    QCOMPARE(proxyModel.getRawPath(2), fileB); // -2 days
+    QCOMPARE(proxyModel.getRawPath(3), fileA); // -1 day
+
+    // --- Date descending (newest first) ---
+    proxyModel.setSortOrder(Qt::DescendingOrder);
+    QCOMPARE(proxyModel.getRawPath(1), fileA);
+    QCOMPARE(proxyModel.getRawPath(2), fileB);
+    QCOMPARE(proxyModel.getRawPath(3), fileC);
+
+    // --- Dimensions ascending ---
+    proxyModel.setSortBy("dimensions");
+    proxyModel.setSortOrder(Qt::AscendingOrder);
+    QCOMPARE(proxyModel.getRawPath(1), fileB); // 800x600
+    QCOMPARE(proxyModel.getRawPath(2), fileC); // 1024x768
+    QCOMPARE(proxyModel.getRawPath(3), fileA); // 1920x1080
+
+    // --- Dimensions descending ---
+    proxyModel.setSortOrder(Qt::DescendingOrder);
+    QCOMPARE(proxyModel.getRawPath(1), fileA);
+    QCOMPARE(proxyModel.getRawPath(2), fileC);
+    QCOMPARE(proxyModel.getRawPath(3), fileB);
+
+    // --- New roles are exposed on the proxy (filered from the source model) ---
+    QModelIndex firstFile = proxyModel.index(1, 0);
+    QCOMPARE(proxyModel.data(firstFile, GalleryListModel::FileSizeRole).toLongLong(), qint64(300));
+    QVERIFY(proxyModel.data(firstFile, GalleryListModel::LastModifiedRole).toDateTime().isValid());
+
+    // Reset to a clean sorted state for any test that runs afterwards
+    proxyModel.setSortBy("name");
+    proxyModel.setSortOrder(Qt::AscendingOrder);
 }
 
 QTEST_MAIN(TestGalleryFilterProxyModel)

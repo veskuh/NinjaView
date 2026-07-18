@@ -18,6 +18,21 @@ Item {
     property string currentFolderPath: ""
     property var folderSelections: ({})
     property int thumbnailSize: 200
+    property string viewMode: "grid"
+    property int listRowHeight: 28
+
+    // Sort state for list mode ("name" / "date" / "size")
+    property string lastSortKey: ""
+
+    function toggleSort(key) {
+        if (panel.lastSortKey === key) {
+            galleryModel.sortOrder = (galleryModel.sortOrder === Qt.AscendingOrder) ? Qt.DescendingOrder : Qt.AscendingOrder;
+        } else {
+            galleryModel.sortOrder = (key === "name") ? Qt.AscendingOrder : Qt.DescendingOrder;
+        }
+        galleryModel.sortBy = key;
+        panel.lastSortKey = key;
+    }
 
     // Multi-selection state
     property var selectedPaths: ({})
@@ -57,7 +72,7 @@ Item {
             newSelections[path] = true;
             selectedPaths = newSelections;
             lastClickedIndex = index;
-            galleryGrid.currentIndex = index; // Keep standard index in sync
+            activeView.currentIndex = index; // Keep standard index in sync
         }
     }
 
@@ -200,10 +215,36 @@ Item {
     signal folderSelectionsUpdated(var selections)
     signal doubleClicked(int index)
     signal folderDoubleClicked(string path, string name)
+    signal parentFolderRequested()
 
-    // Expose internal items
-    property alias currentIndex: galleryGrid.currentIndex
-    readonly property alias gridView: galleryGrid.gridView
+    // Expose internal items.
+    // currentIndex is mirrored here so external callers can read/write it regardless
+    // of which view mode is active; gridView routes to the active view's inner view.
+    property int currentIndex: -1
+    readonly property var activeView: viewMode === "list" ? galleryList : galleryGrid.gridView
+    readonly property var gridView: activeView
+
+    onCurrentIndexChanged: {
+        if (activeView.currentIndex !== currentIndex) {
+            activeView.currentIndex = currentIndex
+        }
+    }
+
+    onViewModeChanged: {
+        // Carry selection and focus over to the newly activated view.
+        // Note: resolve the target view directly from viewMode instead of the
+        // activeView binding, which may not have re-evaluated yet at this point.
+        let target = viewMode === "list" ? galleryList : galleryGrid.gridView
+        target.currentIndex = panel.currentIndex
+        target.forceActiveFocus()
+        if (panel.currentIndex >= 0) {
+            if (viewMode === "list") {
+                galleryList.positionViewAtIndex(panel.currentIndex, ListView.Contain)
+            } else {
+                galleryGrid.gridView.positionViewAtIndex(panel.currentIndex, GridView.Contain)
+            }
+        }
+    }
 
     function triggerDelete(index, path, name) {
         deleteConfirmationDialog.isBatch = false
@@ -320,6 +361,8 @@ Item {
         }
     }
 
+    // Sortable column header is now handled internally by KaakaoTableView.
+
     KaakaoGridView {
         id: galleryGrid
         objectName: "galleryGrid"
@@ -327,7 +370,8 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
-        
+        visible: panel.viewMode === "grid"
+
         model: galleryModel
         cellWidth: panel.thumbnailSize
         cellHeight: panel.thumbnailSize + 30
@@ -358,6 +402,9 @@ Item {
             if (panel.loading && gridView.currentIndex !== -1) {
                 gridView.currentIndex = -1;
             } else if (!panel.loading) {
+                if (panel.currentIndex !== gridView.currentIndex) {
+                    panel.currentIndex = gridView.currentIndex;
+                }
                 if (panel.currentFolderPath) {
                     let selections = panel.folderSelections;
                     selections[panel.currentFolderPath] = gridView.currentIndex;
@@ -410,6 +457,162 @@ Item {
             }
             onUpdateLastClickedIndex: (newIndex) => {
                 panel.lastClickedIndex = newIndex
+            }
+        }
+    }
+
+    KaakaoTableView {
+        id: galleryList
+        objectName: "galleryList"
+        anchors.top: filterScopeBar.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        visible: panel.viewMode === "list"
+        focus: panel.viewMode === "list"
+
+        model: galleryModel
+
+        columns: [
+            KaakaoTableColumn {
+                title: qsTr("Name")
+                role: "name"
+                width: typeof appSettings !== "undefined" ? appSettings.nameColumnWidth : 300
+                minWidth: 100
+                onWidthChanged: {
+                    if (typeof appSettings !== "undefined") {
+                        appSettings.nameColumnWidth = width;
+                    }
+                }
+            },
+            KaakaoTableColumn {
+                title: qsTr("Dimensions")
+                role: "dimensions"
+                width: typeof appSettings !== "undefined" ? appSettings.dimsColumnWidth : 90
+                minWidth: 60
+                onWidthChanged: {
+                    if (typeof appSettings !== "undefined") {
+                        appSettings.dimsColumnWidth = width;
+                    }
+                }
+            },
+            KaakaoTableColumn {
+                title: qsTr("Date")
+                role: "date"
+                width: typeof appSettings !== "undefined" ? appSettings.dateColumnWidth : 150
+                minWidth: 80
+                onWidthChanged: {
+                    if (typeof appSettings !== "undefined") {
+                        appSettings.dateColumnWidth = width;
+                    }
+                }
+            },
+            KaakaoTableColumn {
+                title: qsTr("Size")
+                role: "size"
+                width: typeof appSettings !== "undefined" ? appSettings.sizeColumnWidth : 70
+                minWidth: 50
+                onWidthChanged: {
+                    if (typeof appSettings !== "undefined") {
+                        appSettings.sizeColumnWidth = width;
+                    }
+                }
+            }
+        ]
+
+        onSortRequested: (role, order) => {
+            galleryModel.sortBy = role
+            galleryModel.sortOrder = order
+        }
+
+        WheelHandler {
+            id: listWheelZoomHandler
+            acceptedModifiers: Qt.ControlModifier
+            onWheel: (event) => {
+                let current = panel.listRowHeight;
+                let target = current;
+                if (event.angleDelta.y > 0) {
+                    target = Math.min(48, current + 4);
+                } else if (event.angleDelta.y < 0) {
+                    target = Math.max(24, current - 4);
+                }
+                if (target !== current) {
+                    if (typeof appSettings !== "undefined") {
+                        appSettings.listRowHeight = target;
+                    } else {
+                        panel.listRowHeight = target;
+                    }
+                }
+            }
+        }
+
+        onCurrentIndexChanged: {
+            if (panel.loading && galleryList.currentIndex !== -1) {
+                galleryList.currentIndex = -1;
+            } else if (!panel.loading) {
+                if (panel.currentIndex !== galleryList.currentIndex) {
+                    panel.currentIndex = galleryList.currentIndex;
+                }
+                if (panel.currentFolderPath) {
+                    let selections = panel.folderSelections;
+                    selections[panel.currentFolderPath] = galleryList.currentIndex;
+                    panel.folderSelectionsUpdated(selections);
+                }
+            }
+        }
+
+        onActiveFocusChanged: {
+            if (galleryList.activeFocus && galleryList.currentIndex === -1 && galleryModel.count > 0) {
+                galleryList.currentIndex = 0;
+            }
+        }
+
+        delegate: GalleryListDelegate {
+            selectedPaths: panel.selectedPaths
+            selectedCount: panel.selectedCount
+            lastClickedIndex: panel.lastClickedIndex
+            rowHeight: panel.listRowHeight
+            galleryModelSource: galleryModel
+            exifDatabaseSource: typeof exifDatabase !== "undefined" ? exifDatabase : null
+            getImageUrlHelper: root.getImageUrl
+            columnsList: galleryList.columns
+            onItemClicked: (rawPath, idx, modifiers) => {
+                panel.handleItemClick(rawPath, idx, modifiers)
+                galleryList.forceActiveFocus()
+            }
+            onItemDoubleClicked: (rawPath, idx, isFolder, fileName) => {
+                if (isFolder) {
+                    panel.folderDoubleClicked(rawPath, fileName)
+                } else {
+                    panel.doubleClicked(idx)
+                }
+            }
+            onItemRightClicked: (rawPath, idx, isFolder, mouse) => {
+                if (isFolder) {
+                    folderContextMenu.targetIndex = idx
+                    folderContextMenu.targetPath = rawPath
+                    folderContextMenu.popup()
+                } else {
+                    galleryContextMenu.targetIndex = idx
+                    galleryContextMenu.targetPath = rawPath
+                    galleryContextMenu.popup()
+                }
+            }
+            onSelectionToggled: (rawPath, idx) => {
+                panel.toggleSelection(rawPath, idx)
+                galleryList.forceActiveFocus()
+            }
+            onUpdateSelectedPaths: (newSelections) => {
+                panel.selectedPaths = newSelections
+            }
+            onUpdateLastClickedIndex: (newIndex) => {
+                panel.lastClickedIndex = newIndex
+            }
+            onFolderOpenRequested: (rawPath, fileName) => {
+                panel.folderDoubleClicked(rawPath, fileName)
+            }
+            onParentFolderRequested: {
+                panel.parentFolderRequested()
             }
         }
     }

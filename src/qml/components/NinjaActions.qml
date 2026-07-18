@@ -27,6 +27,8 @@ Item {
     property alias zoomInAction: zoomInAction
     property alias zoomOutAction: zoomOutAction
     property alias actualSizeAction: actualSizeAction
+    property alias gridViewAction: gridViewAction
+    property alias listViewAction: listViewAction
     property alias toggleInfoAction: toggleInfoAction
     property alias showNewOnlyAction: showNewOnlyAction
     property alias importToPhotosAction: importToPhotosAction
@@ -105,26 +107,76 @@ Item {
 
     Action {
         id: zoomInAction
+        objectName: "zoomInAction"
         text: qsTr("Zoom In")
         shortcut: "Ctrl+="
         enabled: !previewOverlay.visible
-        onTriggered: appSettings.thumbnailSize = Math.min(600, appSettings.thumbnailSize + 50)
+        onTriggered: {
+            if (appSettings.viewMode === "list") {
+                appSettings.listRowHeight = Math.min(48, appSettings.listRowHeight + 4)
+            } else {
+                appSettings.thumbnailSize = Math.min(600, appSettings.thumbnailSize + 50)
+            }
+        }
     }
 
     Action {
         id: zoomOutAction
+        objectName: "zoomOutAction"
         text: qsTr("Zoom Out")
         shortcut: "Ctrl+-"
         enabled: !previewOverlay.visible
-        onTriggered: appSettings.thumbnailSize = Math.max(200, appSettings.thumbnailSize - 50)
+        onTriggered: {
+            if (appSettings.viewMode === "list") {
+                appSettings.listRowHeight = Math.max(24, appSettings.listRowHeight - 4)
+            } else {
+                appSettings.thumbnailSize = Math.max(200, appSettings.thumbnailSize - 50)
+            }
+        }
     }
 
     Action {
         id: actualSizeAction
+        objectName: "actualSizeAction"
         text: qsTr("Default Size")
         shortcut: "Ctrl+0"
         enabled: !previewOverlay.visible
-        onTriggered: appSettings.thumbnailSize = 200
+        onTriggered: {
+            if (appSettings.viewMode === "list") {
+                appSettings.listRowHeight = 28
+            } else {
+                appSettings.thumbnailSize = 200
+            }
+        }
+    }
+
+    ActionGroup {
+        id: viewModeActionGroup
+        exclusive: true
+    }
+
+    Action {
+        id: gridViewAction
+        objectName: "gridViewAction"
+        ActionGroup.group: viewModeActionGroup
+        text: qsTr("As Grid")
+        shortcut: "Ctrl+Shift+1"
+        checkable: true
+        onTriggered: appSettings.viewMode = "grid"
+
+        Binding on checked { value: appSettings.viewMode === "grid" }
+    }
+
+    Action {
+        id: listViewAction
+        objectName: "listViewAction"
+        ActionGroup.group: viewModeActionGroup
+        text: qsTr("As List")
+        shortcut: "Ctrl+Shift+2"
+        checkable: true
+        onTriggered: appSettings.viewMode = "list"
+
+        Binding on checked { value: appSettings.viewMode === "list" }
     }
 
     Action {

@@ -69,6 +69,12 @@ KaakaoWindow {
                     KaakaoLabel { text: qsTr("Default Size"); role: KaakaoLabel.Secondary }
                     KaakaoLabel { text: cmdKey + " 0"; font.weight: Font.Bold }
 
+                    KaakaoLabel { text: qsTr("Grid / List View"); role: KaakaoLabel.Secondary }
+                    KaakaoLabel { text: cmdKey + " Shift 1 / " + cmdKey + " Shift 2"; font.weight: Font.Bold }
+
+                    KaakaoLabel { text: qsTr("Enter / Leave Folder (List)"); role: KaakaoLabel.Secondary }
+                    KaakaoLabel { text: "→ / ←"; font.weight: Font.Bold }
+
                     KaakaoLabel { text: qsTr("Show / Hide Info"); role: KaakaoLabel.Secondary }
                     KaakaoLabel { text: cmdKey + " I"; font.weight: Font.Bold }
                 }

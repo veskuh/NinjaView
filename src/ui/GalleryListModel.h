@@ -1,12 +1,15 @@
 #pragma once
 
 #include <QAbstractListModel>
+#include <QDateTime>
 #include <QStringList>
 
 struct GalleryItem {
     QString path;
     bool isFolder;
     bool isVideo;
+    qint64 fileSize = 0;
+    QDateTime lastModified;
 };
 
 class GalleryListModel : public QAbstractListModel
@@ -20,7 +23,9 @@ public:
         FileNameRole,
         RawPathRole,
         IsFolderRole,
-        IsVideoRole
+        IsVideoRole,
+        FileSizeRole,
+        LastModifiedRole
     };
 
     explicit GalleryListModel(bool populateDummy = false, QObject *parent = nullptr);

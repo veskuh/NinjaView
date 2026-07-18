@@ -40,6 +40,10 @@ QVariant GalleryListModel::data(const QModelIndex &index, int role) const
         return item.isFolder;
     case IsVideoRole:
         return item.isVideo;
+    case FileSizeRole:
+        return item.fileSize;
+    case LastModifiedRole:
+        return item.lastModified;
     case Qt::DisplayRole:
         return QFileInfo(item.path).fileName();
     default:
@@ -55,6 +59,8 @@ QHash<int, QByteArray> GalleryListModel::roleNames() const
     roles[RawPathRole] = "rawPath";
     roles[IsFolderRole] = "isFolder";
     roles[IsVideoRole] = "isVideo";
+    roles[FileSizeRole] = "fileSize";
+    roles[LastModifiedRole] = "lastModified";
     return roles;
 }
 
@@ -65,9 +71,10 @@ void GalleryListModel::addImages(const QStringList &newPaths)
 
     beginInsertRows(QModelIndex(), m_items.count(), m_items.count() + newPaths.count() - 1);
     for (const QString &path : newPaths) {
-        QString ext = QFileInfo(path).suffix().toUpper();
+        QFileInfo info(path);
+        QString ext = info.suffix().toUpper();
         bool isVideo = (ext == "MP4" || ext == "MOV");
-        m_items.append({path, false, isVideo});
+        m_items.append({path, false, isVideo, info.exists() ? info.size() : 0, info.lastModified()});
     }
     endInsertRows();
     emit countChanged();
@@ -80,7 +87,8 @@ void GalleryListModel::addFolders(const QStringList &newPaths)
 
     beginInsertRows(QModelIndex(), 0, newPaths.count() - 1);
     for (int i = newPaths.count() - 1; i >= 0; --i) {
-        m_items.insert(0, {newPaths.at(i), true, false});
+        QFileInfo info(newPaths.at(i));
+        m_items.insert(0, {newPaths.at(i), true, false, info.exists() ? info.size() : 0, info.lastModified()});
     }
     endInsertRows();
     emit countChanged();

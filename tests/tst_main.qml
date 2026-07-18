@@ -2,6 +2,7 @@ import QtQuick
 import QtTest
 import NinjaView
 import Kaakao
+import QtCore
 
 TestCase {
     name: "MainTests"
@@ -18,7 +19,11 @@ TestCase {
         mainApp.visibility = Window.Windowed
         var overlay = findChild(mainApp, "previewOverlay")
         if (overlay) overlay.visible = false
-        
+
+        // Restore default view mode
+        var gridViewAction = findChild(mainApp, "gridViewAction")
+        if (gridViewAction) gridViewAction.trigger()
+
         rawGalleryModel.clear()
         
         var searchField = findChild(mainApp, "searchField")
@@ -97,6 +102,225 @@ TestCase {
         tryVerify(function() { return overlay.visible }, 2000, "Double-click should open overlay")
         
         overlay.visible = false
+        rawGalleryModel.clear()
+    }
+
+    function test_view_mode_toggle() {
+        var galleryPanel = findChild(mainApp, "galleryPanel")
+        var grid = findChild(mainApp, "galleryGrid")
+        var list = findChild(mainApp, "galleryList")
+        var listAction = findChild(mainApp, "listViewAction")
+        var gridAction = findChild(mainApp, "gridViewAction")
+        var segmented = findChild(mainApp, "viewModeControl")
+        var overlay = findChild(mainApp, "previewOverlay")
+
+        verify(galleryPanel !== null, "GalleryPanel should be found")
+        verify(grid !== null, "Grid should be found")
+        verify(list !== null, "List should be found")
+        verify(listAction !== null && gridAction !== null, "View mode actions should be found")
+
+        // Grid is the default mode
+        compare(galleryPanel.viewMode, "grid", "Grid should be the default view mode")
+        verify(grid.visible, "Grid should be visible in grid mode")
+        verify(!list.visible, "List should be hidden in grid mode")
+
+        rawGalleryModel.clear()
+        rawGalleryModel.addImages(["/tmp/viewmode1.jpg", "/tmp/viewmode2.jpg", "/tmp/viewmode3.jpg"])
+        overlay.visible = false
+        grid.currentIndex = 1
+        wait(100)
+        compare(galleryPanel.currentIndex, 1, "Panel currentIndex should mirror the grid")
+
+        // Switch to list mode via the menu action
+        listAction.trigger()
+        compare(galleryPanel.viewMode, "list", "Action should switch the panel to list mode")
+        verify(!grid.visible, "Grid should be hidden in list mode")
+        verify(list.visible, "List should be visible in list mode")
+        compare(galleryPanel.currentIndex, 1, "Current index should survive the mode switch")
+        compare(list.currentIndex, 1, "List should adopt the current index")
+        compare(galleryPanel.gridView, list, "gridView should route to the list view")
+        if (segmented) {
+            compare(segmented.currentIndex, 1, "Toolbar segmented control should reflect list mode")
+        }
+
+        // Selection and double-click remain functional in list mode
+        galleryPanel.clearSelection()
+        galleryPanel.toggleSelection("/tmp/viewmode1.jpg", 0)
+        compare(galleryPanel.selectedCount, 1, "Selection should work in list mode")
+
+        galleryPanel.doubleClicked(1)
+        tryVerify(function() { return overlay.visible }, 2000, "Double-click should open overlay from list mode")
+        overlay.visible = false
+
+        // Programmatic index changes route to the active view
+        galleryPanel.currentIndex = 2
+        compare(list.currentIndex, 2, "Assigning panel currentIndex should update the list")
+
+        // Switch back to grid mode
+        gridAction.trigger()
+        compare(galleryPanel.viewMode, "grid", "Action should switch back to grid mode")
+        verify(grid.visible, "Grid should be visible again")
+        verify(!list.visible, "List should be hidden again")
+        compare(grid.currentIndex, 2, "Grid should adopt the current index")
+        compare(galleryPanel.gridView, grid.gridView, "gridView should route back to the grid view")
+
+        galleryPanel.clearSelection()
+        rawGalleryModel.clear()
+    }
+
+    function test_list_header_sorting() {
+        var galleryPanel = findChild(mainApp, "galleryPanel")
+        var header = findChild(mainApp, "listHeader")
+        var listAction = findChild(mainApp, "listViewAction")
+        var gridAction = findChild(mainApp, "gridViewAction")
+
+        verify(galleryPanel !== null && header !== null, "Panel and header should be found")
+
+        // Header hidden in grid mode
+        verify(!header.visible, "Header should be hidden in grid mode")
+
+        listAction.trigger()
+        verify(header.visible, "Header should be visible in list mode")
+
+        // Default: no sorting engaged, insertion order kept
+        rawGalleryModel.clear()
+        rawGalleryModel.addImages(["/tmp/sort_b.jpg", "/tmp/sort_a.jpg", "/tmp/sort_c.jpg"])
+        wait(50)
+        compare(galleryModel.getRawPath(0), "/tmp/sort_b.jpg", "Unsorted model keeps insertion order")
+
+        // First click on Name sorts ascending
+        galleryPanel.toggleSort("name")
+        compare(galleryModel.sortBy, "name", "Sort key should be name")
+        compare(galleryModel.sortOrder, Qt.AscendingOrder, "First name click should be ascending")
+        compare(galleryModel.getRawPath(0), "/tmp/sort_a.jpg", "Name ascending order")
+        compare(galleryModel.getRawPath(1), "/tmp/sort_b.jpg", "Name ascending order")
+        compare(galleryModel.getRawPath(2), "/tmp/sort_c.jpg", "Name ascending order")
+
+        // Second click on Name toggles to descending
+        galleryPanel.toggleSort("name")
+        compare(galleryModel.sortOrder, Qt.DescendingOrder, "Second name click should toggle descending")
+        compare(galleryModel.getRawPath(0), "/tmp/sort_c.jpg", "Name descending order")
+
+        // Switching to Date defaults to descending (newest first)
+        galleryPanel.toggleSort("date")
+        compare(galleryModel.sortBy, "date", "Sort key should be date")
+        compare(galleryModel.sortOrder, Qt.DescendingOrder, "Date should default to descending")
+
+        // Switching back to Name resets to ascending
+        galleryPanel.toggleSort("name")
+        compare(galleryModel.sortOrder, Qt.AscendingOrder, "Returning to name resets to ascending")
+
+        // Verify native header clicks trigger sortRequested signals
+        var nameHeaderClick = findChild(header, "headerClickArea_0")
+        var dateHeaderClick = findChild(header, "headerClickArea_2")
+        verify(nameHeaderClick !== null && dateHeaderClick !== null, "Header click areas must exist")
+
+        // First click on Name (ascending)
+        nameHeaderClick.clicked(null)
+        compare(galleryModel.sortBy, "name", "Click Name sets sortBy to name")
+        compare(galleryModel.sortOrder, Qt.AscendingOrder, "Click Name sets sortOrder to ascending")
+
+        // Second click on Name (descending)
+        nameHeaderClick.clicked(null)
+        compare(galleryModel.sortOrder, Qt.DescendingOrder, "Second click Name sets sortOrder to descending")
+
+        // Click on Date (descending by default)
+        dateHeaderClick.clicked(null)
+        compare(galleryModel.sortBy, "date", "Click Date sets sortBy to date")
+        compare(galleryModel.sortOrder, Qt.DescendingOrder, "Click Date sets sortOrder to descending")
+
+        gridAction.trigger()
+        verify(!header.visible, "Header should be hidden again in grid mode")
+        rawGalleryModel.clear()
+
+        // Leave the model in a predictable sorted state
+        galleryModel.sortBy = "name"
+        galleryModel.sortOrder = Qt.AscendingOrder
+    }
+
+    function test_list_row_zoom() {
+        var galleryPanel = findChild(mainApp, "galleryPanel")
+        var listAction = findChild(mainApp, "listViewAction")
+        var gridAction = findChild(mainApp, "gridViewAction")
+        var zoomIn = findChild(mainApp, "zoomInAction")
+        var zoomOut = findChild(mainApp, "zoomOutAction")
+        var actualSize = findChild(mainApp, "actualSizeAction")
+        var rowSlider = findChild(mainApp, "rowHeightSlider")
+
+        verify(zoomIn !== null && zoomOut !== null && actualSize !== null, "Zoom actions should be found")
+        verify(rowSlider !== null, "Row height slider should be found")
+
+        // Grid mode: zoom drives thumbnail size
+        gridAction.trigger()
+        actualSize.trigger()
+        compare(galleryPanel.thumbnailSize, 200, "Default size resets thumbnails in grid mode")
+
+        // List mode: zoom drives row height
+        listAction.trigger()
+        actualSize.trigger()
+        compare(galleryPanel.listRowHeight, 28, "Default size resets row height in list mode")
+        verify(rowSlider.visible, "Row height slider should be visible in list mode")
+
+        zoomIn.trigger()
+        compare(galleryPanel.listRowHeight, 32, "Zoom In should increase row height")
+        zoomOut.trigger()
+        zoomOut.trigger()
+        compare(galleryPanel.listRowHeight, 24, "Zoom Out should decrease row height")
+        zoomOut.trigger()
+        compare(galleryPanel.listRowHeight, 24, "Row height is clamped at the minimum")
+
+        // Grid thumbnail size is untouched by list zoom
+        compare(galleryPanel.thumbnailSize, 200, "Thumbnail size unchanged by list zoom")
+
+        actualSize.trigger()
+        compare(galleryPanel.listRowHeight, 28, "Default size restores row height")
+        gridAction.trigger()
+    }
+
+    function test_list_folder_keyboard_navigation() {
+        var galleryPanel = findChild(mainApp, "galleryPanel")
+        var list = findChild(mainApp, "galleryList")
+        var listAction = findChild(mainApp, "listViewAction")
+
+        verify(galleryPanel !== null && list !== null, "Panel and list should be found")
+        listAction.trigger()
+
+        var innerList = findChild(list, "listView")
+        verify(innerList !== null, "Inner listView should be found")
+
+        // Start in a regular folder so subfolders are shown
+        mainApp.navigateToFolder("/test", "test")
+        tryVerify(function() { return !mainApp.loading }, 2000, "Scan should finish")
+        rawGalleryModel.clear()
+        rawGalleryModel.addFolders(["/test/subdir"])
+        wait(100)
+        compare(galleryModel.count, 1, "One folder should be listed")
+
+        innerList.currentIndex = 0
+        tryVerify(function() { return innerList.currentItem !== null }, 2000, "Current item should be instantiated")
+        mainApp.requestActivate()
+        innerList.forceActiveFocus()
+        tryVerify(function() { return innerList.activeFocus }, 2000, "List should have active focus")
+
+        // Right enters the folder
+        keyClick(Qt.Key_Right)
+        wait(100)
+        compare(mainApp.currentFolderDescription, "/test/subdir", "Right should enter the folder")
+
+        // Left navigates back to the parent folder
+        tryVerify(function() { return !mainApp.loading }, 2000, "Scan should finish")
+        rawGalleryModel.clear()
+        rawGalleryModel.addFolders(["/test/subdir2"])
+        wait(100)
+        innerList.currentIndex = 0
+        tryVerify(function() { return innerList.currentItem !== null }, 2000, "Current item should be instantiated")
+        innerList.forceActiveFocus()
+        tryVerify(function() { return innerList.activeFocus }, 2000, "List should have active focus")
+        keyClick(Qt.Key_Left)
+        wait(100)
+        compare(mainApp.currentFolderDescription, "/test", "Left should navigate to the parent folder")
+
+        findChild(mainApp, "gridViewAction").trigger()
         rawGalleryModel.clear()
     }
 
