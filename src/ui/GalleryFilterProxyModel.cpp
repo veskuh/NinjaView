@@ -17,6 +17,12 @@ GalleryFilterProxyModel::GalleryFilterProxyModel(QObject *parent)
     setDynamicSortFilter(false);
 
     // Natural filename ordering: case-insensitive, numeric-aware ("img2" < "img10")
+    QLocale defaultLocale;
+    if (defaultLocale.language() == QLocale::C) {
+        m_collator.setLocale(QLocale(QLocale::English));
+    } else {
+        m_collator.setLocale(defaultLocale);
+    }
     m_collator.setCaseSensitivity(Qt::CaseInsensitive);
     m_collator.setNumericMode(true);
 }
