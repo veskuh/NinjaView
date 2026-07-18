@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-07-18
+
+### Added
+- Added sortable column headers (Name, Dimensions, Date, Size) in list mode with ascending/descending sorting toggle support and column resizing.
+- Added persistent storage for list view column widths in application settings.
+- Added row-height zoom support in list mode, allowing zoom actions, toolbar slider, and Ctrl+wheel to adjust list row height (24-48px) and scale thumbnails.
+- Added Finder-style keyboard navigation in list mode (Right arrow key enters selected folder, Left arrow key navigates back to parent folder).
+
+### Fixed
+- Fixed vertical alignment of metadata texts inside the list view row delegates to be centered correctly.
+- Fixed a segmentation fault crash in test execution cleanup by correcting the lifecycle of the engine-owned C++ image provider object.
+
 ## [0.7.1] - 2026-06-20
 
 ### Fixed
@@ -67,7 +79,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed memory handling bugs during application shutdown.
 - Resolved styling and qualified QML access warnings.
 
-[unreleased]: https://github.com/veskuh/NinjaView/compare/v0.7.1...HEAD
+[unreleased]: https://github.com/veskuh/NinjaView/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/veskuh/NinjaView/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/veskuh/NinjaView/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/veskuh/NinjaView/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/veskuh/NinjaView/compare/v0.6.0...v0.6.1
