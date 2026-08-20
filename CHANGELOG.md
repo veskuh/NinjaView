@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-08-20
+
+### Added
+- Added single-file rename functionality via context menu, Edit menu, and `F2` keyboard shortcut with automatic filename stem pre-selection and input validation.
+- Preserved user metadata (tags, notes, favorites, and cached EXIF data) across file renames in the database.
+
+### Fixed
+- Bounded EXIF orientation parsing to a 64 KB header read, avoiding full-file reads on the UI thread during image rotation.
+- Added warnings when batch-rotating read-only files that fall back to in-memory rotation.
+- Centralized image rotation logic and corrected context menu rotation targeting on unselected items.
+- Fixed `QCollator` natural sorting under the C locale on Linux by falling back to English locale rules.
+- Updated `Kaakao` submodule to the latest version.
+
 ## [0.8.0] - 2026-07-18
 
 ### Added
@@ -79,7 +92,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed memory handling bugs during application shutdown.
 - Resolved styling and qualified QML access warnings.
 
-[unreleased]: https://github.com/veskuh/NinjaView/compare/v0.8.0...HEAD
+[unreleased]: https://github.com/veskuh/NinjaView/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/veskuh/NinjaView/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/veskuh/NinjaView/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/veskuh/NinjaView/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/veskuh/NinjaView/compare/v0.6.1...v0.7.0
