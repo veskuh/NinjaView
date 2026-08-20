@@ -187,6 +187,21 @@ KaakaoWindow {
                 importResultDialog.open()
             }
         }
+        function onFileRenamed(oldPath, newPath) {
+            galleryModel.updateItemPath(oldPath, newPath)
+            if (galleryPanel.selectedPaths[oldPath]) {
+                let copy = Object.assign({}, galleryPanel.selectedPaths)
+                delete copy[oldPath]
+                copy[newPath] = true
+                galleryPanel.selectedPaths = copy
+            }
+            if (root.rotationTimestamps[oldPath] !== undefined) {
+                let copy = Object.assign({}, root.rotationTimestamps)
+                copy[newPath] = copy[oldPath]
+                delete copy[oldPath]
+                root.rotationTimestamps = copy
+            }
+        }
     }
 
     MessageDialog {
@@ -195,6 +210,16 @@ KaakaoWindow {
         text: qsTr("This image file is not writable.")
         informativeText: qsTr("NinjaView will display the rotated image for this session, but the changes cannot be saved back to the file.")
         buttons: MessageDialog.Ok
+    }
+
+    RenameDialog {
+        id: renameDialog
+        objectName: "renameDialog"
+    }
+
+    function openRenameDialog(path) {
+        if (!path) return
+        renameDialog.openForPath(path)
     }
 
     Settings {

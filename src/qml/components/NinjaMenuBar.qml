@@ -24,6 +24,7 @@ MenuBar {
     Menu {
         title: qsTr("&Edit")
         MenuItem { action: actions.copyAction }
+        MenuItem { action: actions.renameAction }
         MenuItem { action: actions.rotateLeftAction }
         MenuItem { action: actions.rotateRightAction }
         MenuSeparator {}

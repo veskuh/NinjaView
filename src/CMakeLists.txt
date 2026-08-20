@@ -52,6 +52,7 @@ qt_add_qml_module(NinjaViewLib
         qml/dialogs/KeyboardShortcutsDialog.qml
         qml/dialogs/UserGuideDialog.qml
         qml/dialogs/DeleteConfirmationDialog.qml
+        qml/dialogs/RenameDialog.qml
     RESOURCES
         ../assets/ninja-icon.png
     DEPENDENCIES

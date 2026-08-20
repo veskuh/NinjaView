@@ -819,3 +819,32 @@ bool ExifDatabase::updateCommonTagsBatch(const QStringList &filePaths, const QSt
     return commitOk;
 }
 
+bool ExifDatabase::renameFile(const QString &oldPath, const QString &newPath)
+{
+    if (oldPath.isEmpty() || newPath.isEmpty() || oldPath == newPath) {
+        return false;
+    }
+
+    QSqlDatabase db = getDatabaseConnection();
+    if (!db.isOpen()) {
+        return false;
+    }
+
+    QSqlQuery query(db);
+    query.prepare("UPDATE exif_cache SET file_path = :newPath WHERE file_path = :oldPath");
+    query.bindValue(":newPath", newPath);
+    query.bindValue(":oldPath", oldPath);
+
+    if (!query.exec()) {
+        qWarning() << "ExifDatabase: Failed to rename file path -" << query.lastError().text();
+        return false;
+    }
+
+    if (query.numRowsAffected() > 0) {
+        emit notesChanged(newPath);
+        emit favoritesChanged();
+        emit tagsChanged();
+    }
+    return true;
+}
+

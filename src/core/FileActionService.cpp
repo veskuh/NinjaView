@@ -1,9 +1,11 @@
 #include "FileActionService.h"
 #include "AsyncImageProvider.h"
+#include "ExifDatabase.h"
 #include "exif.h"
 #include <QDesktopServices>
 #include <QUrl>
 #include <QFileInfo>
+#include <QDir>
 #include <QProcess>
 #include <QFile>
 #include <QDebug>
@@ -14,6 +16,11 @@
 
 FileActionService::FileActionService(QObject *parent) : QObject(parent)
 {
+}
+
+void FileActionService::setDatabase(ExifDatabase *db)
+{
+    m_db = db;
 }
 
 void FileActionService::showInFolder(const QString &filePath)
@@ -457,6 +464,59 @@ void FileActionService::importToApplePhotos(const QStringList &filePaths)
     Q_UNUSED(filePaths);
     emit importFinished(false, "Import to Photos is only supported on macOS.");
 #endif
+}
+
+int FileActionService::renameFile(const QString &filePath, const QString &newName)
+{
+    QString localPath = filePath;
+    if (filePath.startsWith("file://")) {
+        localPath = QUrl(filePath).toLocalFile();
+    }
+
+    if (localPath.isEmpty()) {
+        return 3;
+    }
+
+    QString trimmed = newName.trimmed();
+    if (trimmed.isEmpty() || trimmed == "." || trimmed == ".." || trimmed.contains('/') || trimmed.contains('\\')) {
+        return 1;
+    }
+
+    QFileInfo oldInfo(localPath);
+    if (!oldInfo.exists()) {
+        return 3;
+    }
+
+    if (oldInfo.isDir()) {
+        return 1; // Disallow renaming directories
+    }
+
+    if (oldInfo.fileName() == trimmed) {
+        return 0; // No change
+    }
+
+    QString targetPath = oldInfo.dir().filePath(trimmed);
+    QFileInfo targetInfo(targetPath);
+
+    if (targetInfo.exists() && oldInfo.canonicalFilePath() != targetInfo.canonicalFilePath()) {
+        return 2; // Target file already exists
+    }
+
+    if (!QFile::rename(localPath, targetPath)) {
+        return 4; // Rename failed
+    }
+
+    if (m_db) {
+        m_db->renameFile(localPath, targetPath);
+    }
+
+    if (m_imageProvider) {
+        m_imageProvider->clearImageCache(localPath);
+        m_imageProvider->clearImageCache(targetPath);
+    }
+
+    emit fileRenamed(localPath, targetPath);
+    return 0;
 }
 
 

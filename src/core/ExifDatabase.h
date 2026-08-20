@@ -20,6 +20,7 @@ public:
     Q_INVOKABLE QStringList getUniqueCamerasForFolder(const QString &folderPath);
     Q_INVOKABLE QVariantMap getAvailableFiltersForFolder(const QString &folderPath);
     Q_INVOKABLE bool clear();
+    Q_INVOKABLE bool renameFile(const QString &oldPath, const QString &newPath);
 
     // Favorites, Notes, and Tags API
     Q_INVOKABLE bool setFavorite(const QString &filePath, bool favorite);

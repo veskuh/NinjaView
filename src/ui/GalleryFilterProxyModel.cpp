@@ -132,6 +132,19 @@ void GalleryFilterProxyModel::removeImage(int index)
     }
 }
 
+bool GalleryFilterProxyModel::updateItemPath(const QString &oldPath, const QString &newPath)
+{
+    auto srcModel = qobject_cast<GalleryListModel*>(sourceModel());
+    if (srcModel) {
+        bool res = srcModel->updateItemPath(oldPath, newPath);
+        if (res && m_sortBy == "name") {
+            sort(0, m_sortOrder);
+        }
+        return res;
+    }
+    return false;
+}
+
 QString GalleryFilterProxyModel::getRawPath(int row) const
 {
     auto srcModel = qobject_cast<GalleryListModel*>(sourceModel());

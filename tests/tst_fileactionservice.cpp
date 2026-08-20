@@ -9,6 +9,7 @@
 #include <QGuiApplication>
 #include "FileActionService.h"
 #include "AsyncImageProvider.h"
+#include "ExifDatabase.h"
 #include "exif.h"
 
 class TestFileActionService : public QObject
@@ -44,6 +45,7 @@ private slots:
     void testRotateImagesBatchErrors();
     void testCopyToClipboardBatch();
     void testImportToApplePhotos();
+    void testRenameFile();
 };
 
 void TestFileActionService::testMoveToTrashLocalPath()
@@ -615,6 +617,74 @@ void TestFileActionService::testImportToApplePhotos()
 #endif
 }
 
+void TestFileActionService::testRenameFile()
+{
+    QTemporaryDir tempDir;
+    QVERIFY(tempDir.isValid());
+
+    QString filePath1 = tempDir.filePath("original.jpg");
+    QString filePath2 = tempDir.filePath("existing.jpg");
+
+    QFile file1(filePath1);
+    QVERIFY(file1.open(QIODevice::WriteOnly));
+    file1.write("test content 1");
+    file1.close();
+
+    QFile file2(filePath2);
+    QVERIFY(file2.open(QIODevice::WriteOnly));
+    file2.write("test content 2");
+    file2.close();
+
+    ExifDatabase exifDb(":memory:");
+    QVERIFY(exifDb.init());
+    exifDb.setNotes(filePath1, "Important photo note");
+    exifDb.setFavorite(filePath1, true);
+    exifDb.setTags(filePath1, "nature,summer");
+
+    FileActionService service;
+    service.setDatabase(&exifDb);
+
+    QSignalSpy renameSpy(&service, &FileActionService::fileRenamed);
+
+    // 1. Invalid names (empty, contains slash, dot/dotdot)
+    QCOMPARE(service.renameFile(filePath1, ""), 1);
+    QCOMPARE(service.renameFile(filePath1, "   "), 1);
+    QCOMPARE(service.renameFile(filePath1, "."), 1);
+    QCOMPARE(service.renameFile(filePath1, ".."), 1);
+    QCOMPARE(service.renameFile(filePath1, "sub/dir.jpg"), 1);
+    QCOMPARE(service.renameFile(filePath1, "sub\\dir.jpg"), 1);
+
+    // 1b. Reject directory renaming
+    QString subDirPath = tempDir.filePath("subfolder");
+    QDir().mkdir(subDirPath);
+    QCOMPARE(service.renameFile(subDirPath, "renamed_subfolder"), 1);
+
+    // 2. Non-existent source
+    QCOMPARE(service.renameFile(tempDir.filePath("does_not_exist.jpg"), "newname.jpg"), 3);
+
+    // 3. Destination already exists
+    QCOMPARE(service.renameFile(filePath1, "existing.jpg"), 2);
+
+    // 4. Same name (no-op success)
+    QCOMPARE(service.renameFile(filePath1, "original.jpg"), 0);
+
+    // 5. Successful rename
+    QString renamedPath = tempDir.filePath("renamed.jpg");
+    QCOMPARE(service.renameFile(filePath1, "renamed.jpg"), 0);
+    QVERIFY(!QFile::exists(filePath1));
+    QVERIFY(QFile::exists(renamedPath));
+
+    QCOMPARE(renameSpy.count(), 1);
+    QCOMPARE(renameSpy.first().at(0).toString(), filePath1);
+    QCOMPARE(renameSpy.first().at(1).toString(), renamedPath);
+
+    // 6. Verify ExifDatabase records transferred to new path
+    QCOMPARE(exifDb.getNotes(renamedPath), "Important photo note");
+    QCOMPARE(exifDb.isFavorite(renamedPath), true);
+    QCOMPARE(exifDb.getTags(renamedPath), "nature,summer");
+}
+
 QTEST_MAIN(TestFileActionService)
 #include "tst_fileactionservice.moc"
+
 

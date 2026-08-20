@@ -14,6 +14,7 @@ private slots:
     void testClear();
     void testFolders();
     void testVideoSupport();
+    void testUpdateItemPath();
 };
 
 void TestGalleryListModel::initTestCase()
@@ -131,6 +132,23 @@ void TestGalleryListModel::testVideoSupport()
     
     QCOMPARE(model.isVideo(3), false);
     QCOMPARE(model.data(model.index(3, 0), GalleryListModel::IsVideoRole).toBool(), false);
+}
+
+void TestGalleryListModel::testUpdateItemPath()
+{
+    GalleryListModel model;
+    model.addImages({"/tmp/photoA.jpg", "/tmp/photoB.jpg"});
+    QCOMPARE(model.rowCount(), 2);
+
+    QSignalSpy spy(&model, &GalleryListModel::dataChanged);
+    bool updated = model.updateItemPath("/tmp/photoA.jpg", "/tmp/photoRenamed.jpg");
+    QVERIFY(updated);
+    QCOMPARE(spy.count(), 1);
+    QCOMPARE(model.getRawPath(0), "/tmp/photoRenamed.jpg");
+    QCOMPARE(model.getFileName(0), "photoRenamed.jpg");
+
+    // Non-existent path returns false
+    QVERIFY(!model.updateItemPath("/tmp/nonexistent.jpg", "/tmp/other.jpg"));
 }
 
 QTEST_MAIN(TestGalleryListModel)

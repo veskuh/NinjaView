@@ -60,6 +60,7 @@ int main(int argc, char *argv[])
     
     AsyncImageProvider *imageProvider = new AsyncImageProvider(&logger);
     fileActionService.setImageProvider(imageProvider);
+    fileActionService.setDatabase(&exifDb);
 
     // Connect image rotation signal to clear image cache
     QObject::connect(&fileActionService, &FileActionService::imageRotated,

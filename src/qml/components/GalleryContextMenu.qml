@@ -14,6 +14,10 @@ KaakaoMenu {
         galleryPanel && galleryPanel.selectedCount > 1 && galleryPanel.selectedPaths[menu.targetPath] === true
     }
 
+    readonly property bool isTargetFolder: {
+        (targetIndex >= 0 && typeof galleryModel !== "undefined" && galleryModel) ? galleryModel.isFolder(targetIndex) : false
+    }
+
     readonly property bool canRotate: {
         if (isTargetInMultiSelect) {
             let paths = galleryPanel.getSelectedPathsList();
@@ -43,8 +47,14 @@ KaakaoMenu {
     }
     KaakaoMenuItem {
         text: qsTr("Open with Default Application")
-        enabled: !menu.isTargetInMultiSelect
+        enabled: !menu.isTargetInMultiSelect && !menu.isTargetFolder
         onTriggered: fileActionService.openExternally(menu.targetPath)
+    }
+    KaakaoMenuItem {
+        objectName: "contextMenuRenameItem"
+        text: qsTr("Rename…")
+        enabled: !menu.isTargetInMultiSelect && menu.targetPath !== "" && !menu.isTargetFolder
+        onTriggered: root.openRenameDialog(menu.targetPath)
     }
     KaakaoMenuItem {
         text: qsTr("Import to Photos app")

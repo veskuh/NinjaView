@@ -105,6 +105,28 @@ void GalleryListModel::removeImage(int index)
     emit countChanged();
 }
 
+bool GalleryListModel::updateItemPath(const QString &oldPath, const QString &newPath)
+{
+    if (oldPath.isEmpty() || newPath.isEmpty() || oldPath == newPath) {
+        return false;
+    }
+
+    for (int i = 0; i < m_items.count(); ++i) {
+        if (m_items.at(i).path == oldPath) {
+            m_items[i].path = newPath;
+            QFileInfo info(newPath);
+            if (info.exists()) {
+                m_items[i].fileSize = info.size();
+                m_items[i].lastModified = info.lastModified();
+            }
+            QModelIndex idx = index(i, 0);
+            emit dataChanged(idx, idx, {FilePathRole, FileNameRole, RawPathRole, FileSizeRole, LastModifiedRole});
+            return true;
+        }
+    }
+    return false;
+}
+
 void GalleryListModel::clear()
 {
     beginResetModel();

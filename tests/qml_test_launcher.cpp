@@ -62,6 +62,8 @@ public slots:
 
         static FileActionService* fileActionService = new FileActionService();
         AsyncImageProvider* imageProvider = new AsyncImageProvider(logger);
+        fileActionService->setImageProvider(imageProvider);
+        fileActionService->setDatabase(exifDb);
         
         static bool connectionsDone = false;
         if (!connectionsDone) {

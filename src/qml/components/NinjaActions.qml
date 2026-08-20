@@ -40,6 +40,7 @@ Item {
     property alias fullscreenPreviewAction: fullscreenPreviewAction
     property alias openExternallyAction: openExternallyAction
     property alias copyAction: copyAction
+    property alias renameAction: renameAction
     property alias userGuideAction: userGuideAction
     property alias keyboardShortcutsAction: keyboardShortcutsAction
 
@@ -261,6 +262,49 @@ Item {
         onTriggered: {
             let path = galleryModel.getRawPath(galleryPanel.currentIndex)
             fileActionService.showInFolder(path)
+        }
+    }
+
+    function isSingleSelectionFolder() {
+        if (typeof galleryModel === "undefined" || !galleryModel) return true
+        if (galleryPanel.selectedCount === 1) {
+            let paths = galleryPanel.getSelectedPathsList()
+            if (paths.length === 1) {
+                for (let i = 0; i < galleryModel.count; ++i) {
+                    if (galleryModel.getRawPath(i) === paths[0]) {
+                        return galleryModel.isFolder(i)
+                    }
+                }
+            }
+            let idx = galleryPanel.lastClickedIndex >= 0 ? galleryPanel.lastClickedIndex : galleryPanel.currentIndex
+            if (idx >= 0 && idx < galleryModel.count) {
+                return galleryModel.isFolder(idx)
+            }
+            return false
+        }
+        if (galleryPanel.selectedCount === 0 && galleryPanel.currentIndex >= 0 && galleryPanel.currentIndex < galleryModel.count) {
+            return galleryModel.isFolder(galleryPanel.currentIndex)
+        }
+        return true
+    }
+
+    Action {
+        id: renameAction
+        objectName: "renameAction"
+        text: qsTr("Rename…")
+        shortcut: "F2"
+        enabled: !previewOverlay.visible && (galleryPanel.selectedCount === 1 || (galleryPanel.selectedCount === 0 && galleryPanel.currentIndex >= 0)) && !actionsProvider.isSingleSelectionFolder()
+        onTriggered: {
+            let path = ""
+            if (galleryPanel.selectedCount === 1) {
+                let paths = galleryPanel.getSelectedPathsList()
+                if (paths.length > 0) path = paths[0]
+            } else if (galleryPanel.currentIndex >= 0) {
+                path = galleryModel.getRawPath(galleryPanel.currentIndex)
+            }
+            if (path !== "") {
+                rootWindow.openRenameDialog(path)
+            }
         }
     }
 

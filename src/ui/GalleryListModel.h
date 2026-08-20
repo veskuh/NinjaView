@@ -37,6 +37,7 @@ public:
     Q_INVOKABLE void addImages(const QStringList &newPaths);
     Q_INVOKABLE void addFolders(const QStringList &newPaths);
     Q_INVOKABLE void removeImage(int index);
+    Q_INVOKABLE bool updateItemPath(const QString &oldPath, const QString &newPath);
     Q_INVOKABLE void clear();
     Q_INVOKABLE QString getRawPath(int row) const;
     Q_INVOKABLE QString getFileName(int row) const;

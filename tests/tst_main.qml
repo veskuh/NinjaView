@@ -951,4 +951,76 @@ TestCase {
         galleryPanel.clearSelection()
         rawGalleryModel.clear()
     }
+
+    function test_rename_action_and_dialog() {
+        var galleryPanel = findChild(mainApp, "galleryPanel")
+        var renameAction = findChild(mainApp, "renameAction")
+        var renameDialog = findChild(mainApp, "renameDialog")
+        var contextMenu = findChild(mainApp, "galleryContextMenu")
+
+        verify(renameAction !== null, "renameAction should be found")
+        verify(renameDialog !== null, "renameDialog should be found")
+        verify(contextMenu !== null, "galleryContextMenu should be found")
+
+        // 1. Initially disabled when gallery is empty
+        rawGalleryModel.clear()
+        galleryPanel.clearSelection()
+        galleryPanel.currentIndex = -1
+        compare(renameAction.enabled, false, "renameAction should be disabled when empty")
+
+        // 2. Add an image
+        rawGalleryModel.addImages(["/tmp/photo_original.jpg"])
+        wait(50)
+        galleryPanel.currentIndex = 0
+        galleryPanel.toggleSelection("/tmp/photo_original.jpg", 0)
+        compare(renameAction.enabled, true, "renameAction should be enabled for single selection")
+
+        // 3. Multi-selection disables renameAction
+        rawGalleryModel.addImages(["/tmp/photo_two.jpg"])
+        wait(50)
+        galleryPanel.toggleSelection("/tmp/photo_two.jpg", 1)
+        compare(galleryPanel.selectedCount, 2, "Two items selected")
+        compare(renameAction.enabled, false, "renameAction should be disabled for multi-selection")
+
+        // 3b. Selecting a folder keeps renameAction and context menu rename disabled
+        rawGalleryModel.clear()
+        rawGalleryModel.addFolders(["/tmp/subfolder"])
+        wait(50)
+        galleryPanel.clearSelection()
+        galleryPanel.toggleSelection("/tmp/subfolder", 0)
+        galleryPanel.currentIndex = 0
+        compare(renameAction.enabled, false, "renameAction should be disabled when folder is selected")
+
+        contextMenu.targetIndex = 0
+        contextMenu.targetPath = "/tmp/subfolder"
+        var renameMenuItem = findChild(contextMenu, "contextMenuRenameItem")
+        verify(renameMenuItem !== null, "contextMenuRenameItem should be found")
+        compare(renameMenuItem.enabled, false, "ContextMenu Rename item should be disabled for folders")
+
+        // 4. Test RenameDialog openForPath and stem pre-selection
+        rawGalleryModel.clear()
+        rawGalleryModel.addImages(["/tmp/photo_original.jpg"])
+        wait(50)
+        galleryPanel.clearSelection()
+        galleryPanel.toggleSelection("/tmp/photo_original.jpg", 0)
+        galleryPanel.currentIndex = 0
+
+        renameDialog.openForPath("/tmp/photo_original.jpg")
+        compare(renameDialog.visible, true, "RenameDialog should be open")
+        compare(renameDialog.originalName, "photo_original.jpg", "Original name should be set")
+
+        var nameInput = findChild(renameDialog, "renameTextField")
+        verify(nameInput !== null, "renameTextField should be found")
+        compare(nameInput.text, "photo_original.jpg", "TextField text should match filename")
+        compare(nameInput.selectionStart, 0, "Stem selection should start at 0")
+        compare(nameInput.selectionEnd, 14, "Stem selection should end at dot index")
+
+        // 5. Cancel closes dialog
+        renameDialog.close()
+        tryCompare(renameDialog, "visible", false, 2000)
+
+        // Cleanup
+        galleryPanel.clearSelection()
+        rawGalleryModel.clear()
+    }
 }

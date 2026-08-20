@@ -108,6 +108,9 @@ KaakaoWindow {
                     KaakaoLabel { text: qsTr("Open with Default Application"); role: KaakaoLabel.Secondary }
                     KaakaoLabel { text: cmdKey + " O"; font.weight: Font.Bold }
 
+                    KaakaoLabel { text: qsTr("Rename"); role: KaakaoLabel.Secondary }
+                    KaakaoLabel { text: "F2"; font.weight: Font.Bold }
+
                     KaakaoLabel { text: qsTr("Move to Trash"); role: KaakaoLabel.Secondary }
                     KaakaoLabel { text: "Delete / Backspace"; font.weight: Font.Bold }
                 }
