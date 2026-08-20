@@ -40,6 +40,8 @@ private slots:
     void testCopyToClipboard();
     void testMoveToTrashBatch();
     void testRotateImagesBatch();
+    void testRotateImagesBatchReadOnly();
+    void testRotateImagesBatchErrors();
     void testCopyToClipboardBatch();
     void testImportToApplePhotos();
 };
@@ -521,8 +523,35 @@ void TestFileActionService::testRotateImagesBatch()
     QVERIFY(QFile::copy("data/canon-g9-x.jpg", p2));
     
     FileActionService service;
-    int errors = service.rotateImagesBatch({ p1, p2 }, 90);
-    QCOMPARE(errors, 0);
+    int result = service.rotateImagesBatch({ p1, p2 }, 90);
+    QCOMPARE(result, 0);
+}
+
+void TestFileActionService::testRotateImagesBatchReadOnly()
+{
+    QTemporaryDir tempDir;
+    QVERIFY(tempDir.isValid());
+    QString p1 = tempDir.path() + "/img1_rw.jpg";
+    QString p2 = tempDir.path() + "/img2_ro.jpg";
+    QVERIFY(QFile::copy("data/canon-g9-x.jpg", p1));
+    QVERIFY(QFile::copy("data/canon-g9-x.jpg", p2));
+
+    // Make p2 read-only
+    QVERIFY(QFile::setPermissions(p2, QFileDevice::ReadOwner | QFileDevice::ReadUser));
+
+    FileActionService service;
+    int result = service.rotateImagesBatch({ p1, p2 }, 90);
+    QCOMPARE(result, 1); // 1 = at least one file was read-only/in-memory
+
+    // Clean up permissions
+    QFile::setPermissions(p2, QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ReadUser | QFileDevice::WriteUser);
+}
+
+void TestFileActionService::testRotateImagesBatchErrors()
+{
+    FileActionService service;
+    int result = service.rotateImagesBatch({ "/nonexistent1.jpg", "/nonexistent2.jpg" }, 90);
+    QCOMPARE(result, -2); // Negative count of errors
 }
 
 void TestFileActionService::testCopyToClipboardBatch()

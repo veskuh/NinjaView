@@ -18,13 +18,14 @@ Item {
     property int currentIndex: -1
     property var getImageUrl: null
     property var rotateImage: null
+    property var rotationTimestamps: ({})
 
-    function resolveImageUrl(path) {
+    function resolveImageUrl(path, timestamp) {
         if (!path) return ""
         if (typeof getImageUrl === "function") {
-            return getImageUrl(path)
+            return getImageUrl(path, timestamp)
         }
-        return "image://gallery/" + path
+        return "image://gallery/" + path + (timestamp ? ("?t=" + timestamp) : "")
     }
     
     readonly property int modelCount: ModelResolver.getModelCount(root.model)
@@ -230,7 +231,8 @@ Item {
         id: zoomableImage
         anchors.fill: parent
         visible: !root.isCurrentVideo
-        source: (root.currentImagePath && !root.isCurrentVideo) ? resolveImageUrl(root.currentImagePath) : ""
+        readonly property var rotationTimestamp: (root.rotationTimestamps && root.currentImagePath) ? root.rotationTimestamps[root.currentImagePath] : undefined
+        source: (root.currentImagePath && !root.isCurrentVideo) ? resolveImageUrl(root.currentImagePath, rotationTimestamp) : ""
     }
 
     // Native Video Player

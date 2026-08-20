@@ -10,18 +10,40 @@ KaakaoMenu {
     property string targetPath: ""
     property var galleryPanel
 
-    readonly property bool isMultiSelect: {
+    readonly property bool isTargetInMultiSelect: {
         galleryPanel && galleryPanel.selectedCount > 1 && galleryPanel.selectedPaths[menu.targetPath] === true
+    }
+
+    readonly property bool canRotate: {
+        if (isTargetInMultiSelect) {
+            let paths = galleryPanel.getSelectedPathsList();
+            for (let i = 0; i < paths.length; ++i) {
+                let p = paths[i].toLowerCase();
+                if (p.endsWith(".jpg") || p.endsWith(".jpeg")) return true;
+            }
+            return false;
+        }
+        if (!menu.targetPath) return false;
+        let p = menu.targetPath.toLowerCase();
+        return p.endsWith(".jpg") || p.endsWith(".jpeg");
+    }
+
+    function triggerRotate(angle) {
+        if (isTargetInMultiSelect) {
+            root.rotateSelection(angle);
+        } else {
+            root.rotatePath(menu.targetPath, angle);
+        }
     }
 
     KaakaoMenuItem {
         text: Qt.platform.os === "osx" ? qsTr("Reveal in Finder") : qsTr("Show in File Manager")
-        enabled: !menu.isMultiSelect
+        enabled: !menu.isTargetInMultiSelect
         onTriggered: fileActionService.showInFolder(menu.targetPath)
     }
     KaakaoMenuItem {
         text: qsTr("Open with Default Application")
-        enabled: !menu.isMultiSelect
+        enabled: !menu.isTargetInMultiSelect
         onTriggered: fileActionService.openExternally(menu.targetPath)
     }
     KaakaoMenuItem {
@@ -30,7 +52,7 @@ KaakaoMenu {
         onTriggered: {
             if (!galleryPanel) return
             let paths = []
-            if (menu.isMultiSelect) {
+            if (menu.isTargetInMultiSelect) {
                 paths = galleryPanel.getSelectedPathsList()
             } else {
                 paths = [menu.targetPath]
@@ -41,22 +63,22 @@ KaakaoMenu {
     MenuSeparator {}
     KaakaoMenuItem {
         text: qsTr("Rotate Left")
-        enabled: galleryPanel && galleryPanel.canRotateSelection(menu.isMultiSelect, menu.targetIndex)
-        onTriggered: galleryPanel && galleryPanel.rotateSelection(270, menu.isMultiSelect)
+        enabled: menu.canRotate
+        onTriggered: menu.triggerRotate(270)
     }
     KaakaoMenuItem {
         text: qsTr("Rotate Right")
-        enabled: galleryPanel && galleryPanel.canRotateSelection(menu.isMultiSelect, menu.targetIndex)
-        onTriggered: galleryPanel && galleryPanel.rotateSelection(90, menu.isMultiSelect)
+        enabled: menu.canRotate
+        onTriggered: menu.triggerRotate(90)
     }
     MenuSeparator {}
     KaakaoMenuItem {
-        text: menu.isMultiSelect
+        text: menu.isTargetInMultiSelect
               ? qsTr("Move %1 Items to Trash").arg(galleryPanel ? galleryPanel.selectedCount : 0)
               : qsTr("Move to Trash")
         onTriggered: {
             if (!galleryPanel) return
-            if (menu.isMultiSelect) {
+            if (menu.isTargetInMultiSelect) {
                 let paths = galleryPanel.getSelectedPathsList();
                 if (galleryPanel.confirmDeletions) {
                     galleryPanel.triggerDeleteBatch(paths)

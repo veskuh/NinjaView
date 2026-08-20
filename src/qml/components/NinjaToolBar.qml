@@ -16,6 +16,7 @@ KaakaoToolBar {
     property int thumbnailSize: 200
     property int listRowHeight: 28
     property string viewMode: "grid"
+    property bool canRotate: false
 
     signal rotateImage(int angle)
     signal toggleShowMainInfo()
@@ -101,10 +102,7 @@ KaakaoToolBar {
         KaakaoToolButton {
             iconEmoji: "↺"
             text: qsTr("Rotate Left")
-            enabled: {
-                let idx = toolbar.previewOverlayVisible ? toolbar.previewOverlayCurrentIndex : toolbar.galleryPanelCurrentIndex
-                return toolbar.isJpegFile(idx)
-            }
+            enabled: toolbar.canRotate
             onClicked: toolbar.rotateImage(270)
             KaakaoToolTip { visible: parent.hovered; text: qsTr("Rotate Left (JPEG only)") }
         }
@@ -112,10 +110,7 @@ KaakaoToolBar {
         KaakaoToolButton {
             iconEmoji: "↻"
             text: qsTr("Rotate Right")
-            enabled: {
-                let idx = toolbar.previewOverlayVisible ? toolbar.previewOverlayCurrentIndex : toolbar.galleryPanelCurrentIndex
-                return toolbar.isJpegFile(idx)
-            }
+            enabled: toolbar.canRotate
             onClicked: toolbar.rotateImage(90)
             KaakaoToolTip { visible: parent.hovered; text: qsTr("Rotate Right (JPEG only)") }
         }

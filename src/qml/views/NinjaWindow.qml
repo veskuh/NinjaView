@@ -28,9 +28,9 @@ KaakaoWindow {
     property bool inlinePreviewActive: false
     property alias galleryPanel: galleryPanel
 
-    function getImageUrl(filePath) {
+    function getImageUrl(filePath, timestamp) {
         if (!filePath) return "";
-        let t = rotationTimestamps[filePath];
+        let t = timestamp !== undefined ? timestamp : rotationTimestamps[filePath];
         return "image://gallery/" + filePath + (t ? ("?t=" + t) : "");
     }
 
@@ -41,12 +41,23 @@ KaakaoWindow {
         rotationTimestamps = copy;
     }
 
-    function rotateImage(angle) {
-        let index = previewOverlay.visible ? previewOverlay.currentIndex : galleryPanel.currentIndex;
-        if (index < 0 || galleryModel.isFolder(index)) {
-            return;
+    function forceRefreshImagesBatch(filePaths) {
+        let t = Date.now();
+        let copy = Object.assign({}, rotationTimestamps);
+        for (let i = 0; i < filePaths.length; ++i) {
+            copy[filePaths[i]] = t + i;
         }
-        let path = galleryModel.getRawPath(index);
+        rotationTimestamps = copy;
+    }
+
+    function canRotatePath(filePath) {
+        if (!filePath) return false;
+        let p = String(filePath).toLowerCase();
+        return p.endsWith(".jpg") || p.endsWith(".jpeg");
+    }
+
+    function rotatePath(path, angle) {
+        if (!path || !canRotatePath(path)) return;
         let result = fileActionService.rotateImage(path, angle);
         if (result === 0) {
             forceRefreshImage(path);
@@ -56,45 +67,61 @@ KaakaoWindow {
         }
     }
 
+    function rotateImage(angle) {
+        let index = previewOverlay.visible ? previewOverlay.currentIndex : galleryPanel.currentIndex;
+        if (index < 0 || galleryModel.isFolder(index)) {
+            return;
+        }
+        let path = galleryModel.getRawPath(index);
+        rotatePath(path, angle);
+    }
+
     function isJpegFile(idx) {
         if (idx < 0 || !galleryModel || idx >= galleryModel.count || galleryModel.isFolder(idx)) {
             return false;
         }
-        let path = String(galleryModel.getRawPath(idx)).toLowerCase();
-        return path.endsWith(".jpg") || path.endsWith(".jpeg");
+        return canRotatePath(galleryModel.getRawPath(idx));
     }
 
     function canRotateSelection() {
+        if (previewOverlay.visible) {
+            return canRotatePath(previewOverlay.currentImagePath);
+        }
         if (galleryPanel.selectedCount > 0) {
             let paths = galleryPanel.getSelectedPathsList();
             for (let i = 0; i < paths.length; ++i) {
-                let p = paths[i].toLowerCase();
-                if (p.endsWith(".jpg") || p.endsWith(".jpeg")) return true;
+                if (canRotatePath(paths[i])) return true;
             }
             return false;
         }
-        let idx = previewOverlay.visible ? previewOverlay.currentIndex : galleryPanel.currentIndex;
+        let idx = galleryPanel.currentIndex;
         return root.isJpegFile(idx);
     }
 
     function rotateSelection(angle) {
+        if (previewOverlay.visible) {
+            rotateImage(angle);
+            return;
+        }
         if (galleryPanel.selectedCount > 0) {
             let paths = galleryPanel.getSelectedPathsList();
             let jpegs = [];
             for (let i = 0; i < paths.length; ++i) {
-                let p = paths[i].toLowerCase();
-                if (p.endsWith(".jpg") || p.endsWith(".jpeg")) {
+                if (canRotatePath(paths[i])) {
                     jpegs.push(paths[i]);
                 }
             }
-            if (jpegs.length > 0) {
-                fileActionService.rotateImagesBatch(jpegs, angle)
-                for (let i = 0; i < jpegs.length; ++i) {
-                    root.forceRefreshImage(jpegs[i]);
+            if (jpegs.length === 1) {
+                rotatePath(jpegs[0], angle);
+            } else if (jpegs.length > 1) {
+                let result = fileActionService.rotateImagesBatch(jpegs, angle);
+                root.forceRefreshImagesBatch(jpegs);
+                if (result === 1) {
+                    rotationWarningDialog.open();
                 }
             }
         } else {
-            root.rotateImage(angle)
+            root.rotateImage(angle);
         }
     }
 
@@ -331,8 +358,9 @@ KaakaoWindow {
                     thumbnailSize: appSettings.thumbnailSize
                     listRowHeight: appSettings.listRowHeight
                     viewMode: appSettings.viewMode
+                    canRotate: root.canRotateSelection()
 
-                    onRotateImage: (angle) => root.rotateImage(angle)
+                    onRotateImage: (angle) => root.rotateSelection(angle)
                     onToggleShowMainInfo: root.showMainInfo = !root.showMainInfo
                     onViewModeRequested: (mode) => {
                         appSettings.viewMode = mode
@@ -362,6 +390,7 @@ KaakaoWindow {
                     thumbnailSize: appSettings.thumbnailSize
                     viewMode: appSettings.viewMode
                     listRowHeight: appSettings.listRowHeight
+                    rotationTimestamps: root.rotationTimestamps
 
                     onFolderSelectionsUpdated: (selections) => {
                         root.folderSelections = selections
@@ -409,6 +438,7 @@ KaakaoWindow {
                     model: galleryModel
                     currentIndex: galleryPanel.currentIndex
                     getImageUrl: root.getImageUrl
+                    rotationTimestamps: root.rotationTimestamps
 
                     onCloseRequested: {
                         root.inlinePreviewActive = false
@@ -440,6 +470,7 @@ KaakaoWindow {
         model: galleryModel
         getImageUrl: root.getImageUrl
         rotateImage: root.rotateImage
+        rotationTimestamps: root.rotationTimestamps
         z: 100
     }
 }

@@ -13,6 +13,7 @@ Item {
     required property var model
     required property int currentIndex
     required property var getImageUrl
+    property var rotationTimestamps: ({})
 
     signal closeRequested()
     signal requestIndexChange(int index)
@@ -29,12 +30,12 @@ Item {
         videoPlayer.stop()
     }
 
-    function resolveImageUrl(path) {
+    function resolveImageUrl(path, timestamp) {
         if (!path) return ""
         if (typeof getImageUrl === "function") {
-            return getImageUrl(path)
+            return getImageUrl(path, timestamp)
         }
-        return "image://gallery/" + path
+        return "image://gallery/" + path + (timestamp ? ("?t=" + timestamp) : "")
     }
 
     readonly property int modelCount: {
@@ -94,7 +95,8 @@ Item {
         id: zoomableImage
         anchors.fill: parent
         visible: !root.isCurrentVideo
-        source: (root.currentImagePath && !root.isCurrentVideo) ? root.resolveImageUrl(root.currentImagePath) : ""
+        readonly property var rotationTimestamp: (root.rotationTimestamps && root.currentImagePath) ? root.rotationTimestamps[root.currentImagePath] : undefined
+        source: (root.currentImagePath && !root.isCurrentVideo) ? root.resolveImageUrl(root.currentImagePath, rotationTimestamp) : ""
     }
 
     // Reusable Video Player Panel

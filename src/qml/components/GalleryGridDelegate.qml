@@ -13,6 +13,7 @@ KaakaoGridDelegate {
     property var selectedPaths: ({})
     property int selectedCount: 0
     property int lastClickedIndex: -1
+    property var rotationTimestamps: ({})
     property var galleryModelSource
     property var exifDatabaseSource
     property var getImageUrlHelper
@@ -217,7 +218,8 @@ KaakaoGridDelegate {
                     fill: parent
                 }
                 visible: !model.isFolder
-                source: (model.isFolder || !getImageUrlHelper) ? "" : getImageUrlHelper(model.rawPath)
+                readonly property var rotationTimestamp: (gridDelegate.rotationTimestamps && model && model.rawPath) ? gridDelegate.rotationTimestamps[model.rawPath] : undefined
+                source: (model.isFolder || !getImageUrlHelper) ? "" : getImageUrlHelper(model.rawPath, rotationTimestamp)
                 sourceSize: Qt.size(600, 600)
                 fillMode: Image.PreserveAspectFit
                 asynchronous: true

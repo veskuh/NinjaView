@@ -20,6 +20,7 @@ Item {
     property int thumbnailSize: 200
     property string viewMode: "grid"
     property int listRowHeight: 28
+    property var rotationTimestamps: ({})
 
     // Sort state for list mode ("name" / "date" / "size")
     property string lastSortKey: ""
@@ -113,44 +114,6 @@ Item {
                 galleryModel.removeImage(idx);
             });
             panel.clearSelection();
-        }
-    }
-
-    function isJpegAtIndex(idx) {
-        if (idx < 0 || !galleryModel || idx >= galleryModel.count || galleryModel.isFolder(idx)) {
-            return false;
-        }
-        let path = String(galleryModel.getRawPath(idx)).toLowerCase();
-        return path.endsWith(".jpg") || path.endsWith(".jpeg");
-    }
-
-    function canRotateSelection(isMulti, targetIdx) {
-        if (isMulti) {
-            let paths = panel.getSelectedPathsList();
-            for (let i = 0; i < paths.length; ++i) {
-                let p = paths[i].toLowerCase();
-                if (p.endsWith(".jpg") || p.endsWith(".jpeg")) return true;
-            }
-            return false;
-        }
-        return isJpegAtIndex(targetIdx);
-    }
-
-    function rotateSelection(angle, isMulti) {
-        if (isMulti) {
-            let paths = panel.getSelectedPathsList();
-            let jpegs = paths.filter(function(p) {
-                let pl = p.toLowerCase();
-                return pl.endsWith(".jpg") || pl.endsWith(".jpeg");
-            });
-            if (jpegs.length > 0) {
-                fileActionService.rotateImagesBatch(jpegs, angle);
-                for (let i = 0; i < jpegs.length; ++i) {
-                    root.forceRefreshImage(jpegs[i]);
-                }
-            }
-        } else {
-            root.rotateImage(angle);
         }
     }
 
@@ -275,6 +238,7 @@ Item {
 
     GalleryContextMenu {
         id: galleryContextMenu
+        objectName: "galleryContextMenu"
         galleryPanel: panel
     }
 
@@ -423,6 +387,7 @@ Item {
             selectedPaths: panel.selectedPaths
             selectedCount: panel.selectedCount
             lastClickedIndex: panel.lastClickedIndex
+            rotationTimestamps: panel.rotationTimestamps
             galleryModelSource: galleryModel
             exifDatabaseSource: typeof exifDatabase !== "undefined" ? exifDatabase : null
             getImageUrlHelper: root.getImageUrl
@@ -575,6 +540,7 @@ Item {
             selectedPaths: panel.selectedPaths
             selectedCount: panel.selectedCount
             lastClickedIndex: panel.lastClickedIndex
+            rotationTimestamps: panel.rotationTimestamps
             rowHeight: panel.listRowHeight
             galleryModelSource: galleryModel
             exifDatabaseSource: typeof exifDatabase !== "undefined" ? exifDatabase : null

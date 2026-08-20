@@ -15,6 +15,7 @@ import NinjaView
 */
 ItemDelegate {
     id: listDelegate
+    focus: true
 
     required property var model
     required property int index
@@ -23,6 +24,7 @@ ItemDelegate {
     property var selectedPaths: ({})
     property int selectedCount: 0
     property int lastClickedIndex: -1
+    property var rotationTimestamps: ({})
     property int rowHeight: 28
     property var galleryModelSource
     property var exifDatabaseSource
@@ -232,7 +234,8 @@ ItemDelegate {
                         id: thumbnail
                         anchors.fill: parent
                         visible: !model.isFolder
-                        source: (model.isFolder || !getImageUrlHelper) ? "" : getImageUrlHelper(model.rawPath)
+                        readonly property var rotationTimestamp: (listDelegate.rotationTimestamps && model && model.rawPath) ? listDelegate.rotationTimestamps[model.rawPath] : undefined
+                        source: (model.isFolder || !getImageUrlHelper) ? "" : getImageUrlHelper(model.rawPath, rotationTimestamp)
                         sourceSize: Qt.size(64, 64)
                         fillMode: Image.PreserveAspectCrop
                         asynchronous: true

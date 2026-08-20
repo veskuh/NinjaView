@@ -237,6 +237,7 @@ Item {
 
     Action {
         id: rotateLeftAction
+        objectName: "rotateLeftAction"
         text: qsTr("Rotate Counterclockwise")
         shortcut: "Ctrl+["
         enabled: rootWindow.canRotateSelection()
@@ -245,6 +246,7 @@ Item {
 
     Action {
         id: rotateRightAction
+        objectName: "rotateRightAction"
         text: qsTr("Rotate Clockwise")
         shortcut: "Ctrl+]"
         enabled: rootWindow.canRotateSelection()

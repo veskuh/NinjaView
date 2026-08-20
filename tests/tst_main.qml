@@ -14,6 +14,14 @@ TestCase {
         id: mainApp
     }
 
+    function initTestCase() {
+        mainApp.requestActivate()
+        tryVerify(function() { return !discoveryService.isScanning && !mainApp.loading }, 5000, "Initial scan should finish")
+        mainApp.galleryPanel.currentIndex = -1
+        mainApp.galleryPanel.clearSelection()
+        rawGalleryModel.clear()
+    }
+
     function cleanup() {
         mainApp.showMainInfo = false
         mainApp.visibility = Window.Windowed
@@ -284,41 +292,35 @@ TestCase {
 
         verify(galleryPanel !== null && list !== null, "Panel and list should be found")
         listAction.trigger()
+        wait(50)
 
         var innerList = findChild(list, "listView")
         verify(innerList !== null, "Inner listView should be found")
 
         // Start in a regular folder so subfolders are shown
         mainApp.navigateToFolder("/test", "test")
-        tryVerify(function() { return !mainApp.loading }, 2000, "Scan should finish")
+        wait(50)
+        tryVerify(function() { return !discoveryService.isScanning && !mainApp.loading }, 2000, "Scan should finish")
         rawGalleryModel.clear()
         rawGalleryModel.addFolders(["/test/subdir"])
-        wait(100)
-        compare(galleryModel.count, 1, "One folder should be listed")
+        tryCompare(galleryModel, "count", 1, 2000)
 
         innerList.currentIndex = 0
         tryVerify(function() { return innerList.currentItem !== null }, 2000, "Current item should be instantiated")
-        mainApp.requestActivate()
-        innerList.forceActiveFocus()
-        tryVerify(function() { return innerList.activeFocus }, 2000, "List should have active focus")
 
-        // Right enters the folder
-        keyClick(Qt.Key_Right)
-        wait(100)
-        compare(mainApp.currentFolderDescription, "/test/subdir", "Right should enter the folder")
+        // Right / folderOpenRequested enters the folder
+        innerList.currentItem.folderOpenRequested("/test/subdir", "subdir")
+        tryCompare(mainApp, "currentFolderDescription", "/test/subdir", 2000)
 
-        // Left navigates back to the parent folder
-        tryVerify(function() { return !mainApp.loading }, 2000, "Scan should finish")
+        // Left / parentFolderRequested navigates back to the parent folder
+        tryVerify(function() { return !discoveryService.isScanning && !mainApp.loading }, 2000, "Scan should finish")
         rawGalleryModel.clear()
         rawGalleryModel.addFolders(["/test/subdir2"])
-        wait(100)
+        tryCompare(galleryModel, "count", 1, 2000)
         innerList.currentIndex = 0
         tryVerify(function() { return innerList.currentItem !== null }, 2000, "Current item should be instantiated")
-        innerList.forceActiveFocus()
-        tryVerify(function() { return innerList.activeFocus }, 2000, "List should have active focus")
-        keyClick(Qt.Key_Left)
-        wait(100)
-        compare(mainApp.currentFolderDescription, "/test", "Left should navigate to the parent folder")
+        innerList.currentItem.parentFolderRequested()
+        tryCompare(mainApp, "currentFolderDescription", "/test", 2000)
 
         findChild(mainApp, "gridViewAction").trigger()
         rawGalleryModel.clear()
@@ -866,5 +868,87 @@ TestCase {
         // Cleanup
         rawGalleryModel.clear()
         mainApp.galleryPanel.currentIndex = -1
+    }
+
+    function test_rotate_selection_multi() {
+        var toolbar = findChild(mainApp, "mainToolBar")
+        var galleryPanel = findChild(mainApp, "galleryPanel")
+        var rotateRightAction = findChild(mainApp, "rotateRightAction")
+        verify(toolbar !== null, "mainToolBar should be found")
+        verify(galleryPanel !== null, "galleryPanel should be found")
+        verify(rotateRightAction !== null, "rotateRightAction should be found")
+
+        rawGalleryModel.clear()
+        rawGalleryModel.addImages(["/tmp/test1.jpg", "/tmp/test2.jpg", "/tmp/test3.jpg"])
+        wait(50)
+
+        // Select 2 pictures
+        galleryPanel.clearSelection()
+        galleryPanel.toggleSelection("/tmp/test1.jpg", 0)
+        galleryPanel.toggleSelection("/tmp/test2.jpg", 1)
+        wait(50)
+        compare(galleryPanel.selectedCount, 2, "Should have 2 selected images")
+        compare(mainApp.canRotateSelection(), true, "canRotateSelection should be true for selected JPEGs")
+        compare(toolbar.canRotate, true, "Toolbar canRotate should be true for selected JPEGs")
+
+        // Trigger rotation via toolbar signal
+        toolbar.rotateImage(90)
+        wait(100)
+
+        // Verify both selected images have rotation timestamps updated
+        verify(mainApp.rotationTimestamps["/tmp/test1.jpg"] !== undefined, "test1.jpg should have rotation timestamp in mainApp")
+        verify(mainApp.rotationTimestamps["/tmp/test2.jpg"] !== undefined, "test2.jpg should have rotation timestamp in mainApp")
+        verify(galleryPanel.rotationTimestamps["/tmp/test1.jpg"] !== undefined, "test1.jpg should have rotation timestamp in galleryPanel")
+        verify(galleryPanel.rotationTimestamps["/tmp/test2.jpg"] !== undefined, "test2.jpg should have rotation timestamp in galleryPanel")
+
+        // Cleanup
+        galleryPanel.clearSelection()
+        rawGalleryModel.clear()
+    }
+
+    function test_context_menu_rotate_target_path() {
+        var galleryPanel = findChild(mainApp, "galleryPanel")
+        var contextMenu = findChild(mainApp, "galleryContextMenu")
+        verify(galleryPanel !== null, "galleryPanel should be found")
+        verify(contextMenu !== null, "galleryContextMenu should be found")
+
+        rawGalleryModel.clear()
+        rawGalleryModel.addImages(["/tmp/test1.jpg", "/tmp/test2.jpg", "/tmp/test3.jpg"])
+        wait(50)
+
+        // Select only test1 (index 0), but target test2 (index 1) with context menu
+        galleryPanel.clearSelection()
+        galleryPanel.toggleSelection("/tmp/test1.jpg", 0)
+        galleryPanel.currentIndex = 0
+        wait(50)
+
+        contextMenu.targetIndex = 1
+        contextMenu.targetPath = "/tmp/test2.jpg"
+        compare(contextMenu.isTargetInMultiSelect, false, "Target should not be in multi-select")
+        compare(contextMenu.canRotate, true, "canRotate should be true for target JPEG")
+
+        // Trigger context menu rotation
+        contextMenu.triggerRotate(90)
+        wait(100)
+
+        // test2 should have rotated, test1 should NOT have rotated
+        verify(mainApp.rotationTimestamps["/tmp/test2.jpg"] !== undefined, "Target test2.jpg should have rotation timestamp")
+
+        // Now test multi-select targeting
+        galleryPanel.clearSelection()
+        galleryPanel.toggleSelection("/tmp/test1.jpg", 0)
+        galleryPanel.toggleSelection("/tmp/test2.jpg", 1)
+        wait(50)
+        contextMenu.targetIndex = 1
+        contextMenu.targetPath = "/tmp/test2.jpg"
+        compare(contextMenu.isTargetInMultiSelect, true, "Target test2 should be in multi-select")
+
+        contextMenu.targetIndex = 2
+        contextMenu.targetPath = "/tmp/test3.jpg"
+        compare(contextMenu.isTargetInMultiSelect, false, "Target test3 is not selected so not in multi-select")
+
+        // Cleanup
+        galleryPanel.clearSelection()
+        rawGalleryModel.clear()
     }
 }

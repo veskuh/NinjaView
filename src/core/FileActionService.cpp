@@ -95,19 +95,39 @@ int FileActionService::rotateImage(const QString &filePath, int angle)
         return 1; // Read-only success
     }
 
-    // Read the current orientation using easyexif
+    // Read the current orientation from the first 64KB using easyexif
     QFile file(localPath);
     if (!file.open(QIODevice::ReadOnly)) {
         qWarning() << "rotateImage: Cannot open file for reading orientation:" << localPath;
         return -1;
     }
-    QByteArray buffer = file.readAll();
+    QByteArray buffer = file.read(65536);
     file.close();
 
     easyexif::EXIFInfo info;
     int currentOrientation = 1;
-    if (info.parseFrom((unsigned char *)buffer.data(), buffer.size()) == 0) {
-        currentOrientation = info.Orientation;
+
+    // Locate APP1 marker (0xFF 0xE1) and parse EXIF segment directly
+    if (buffer.size() >= 4 && static_cast<unsigned char>(buffer[0]) == 0xFF && static_cast<unsigned char>(buffer[1]) == 0xD8) {
+        int pos = 2;
+        while (pos + 4 <= buffer.size()) {
+            unsigned char marker1 = static_cast<unsigned char>(buffer[pos]);
+            unsigned char marker2 = static_cast<unsigned char>(buffer[pos + 1]);
+            if (marker1 != 0xFF || marker2 == 0xD9 || marker2 == 0xDA) {
+                break;
+            }
+            int length = (static_cast<int>(static_cast<unsigned char>(buffer[pos + 2])) << 8) | static_cast<int>(static_cast<unsigned char>(buffer[pos + 3]));
+            if (marker2 == 0xE1) {
+                int exifHeaderPos = pos + 4;
+                if (exifHeaderPos + 6 <= buffer.size() && buffer.mid(exifHeaderPos, 6) == QByteArray("Exif\0\0", 6)) {
+                    if (info.parseFromEXIFSegment(reinterpret_cast<const unsigned char*>(buffer.constData() + exifHeaderPos), buffer.size() - exifHeaderPos) == 0) {
+                        currentOrientation = info.Orientation;
+                    }
+                }
+                break;
+            }
+            pos += 2 + length;
+        }
     }
     if (currentOrientation < 1 || currentOrientation > 8) {
         currentOrientation = 1;
@@ -347,13 +367,22 @@ void FileActionService::copyToClipboardBatch(const QStringList &filePaths)
 int FileActionService::rotateImagesBatch(const QStringList &filePaths, int angle)
 {
     int errors = 0;
+    bool hasReadOnly = false;
     for (const QString &path : filePaths) {
         int result = rotateImage(path, angle);
         if (result == -1) {
             errors++;
+        } else if (result == 1) {
+            hasReadOnly = true;
         }
     }
-    return errors;
+    if (errors > 0) {
+        return -errors;
+    }
+    if (hasReadOnly) {
+        return 1;
+    }
+    return 0;
 }
 
 bool FileActionService::moveFilesToTrashBatch(const QStringList &filePaths)
